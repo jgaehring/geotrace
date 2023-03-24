@@ -1,0 +1,13 @@
+.ol-trace.ol-control {
+  top: 4.75em;
+  left: 0.5em;
+}
+
+.ol-trace.ol-control button.active {
+  background-color: #fc3;
+  background-color: rgba(255, 204, 51, 0.7);
+}
+
+.ol-trace.ol-control button svg {
+  pointer-events: none;
+}
