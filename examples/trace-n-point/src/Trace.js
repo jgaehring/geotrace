@@ -1,4 +1,3 @@
-/* eslint-disable import/no-extraneous-dependencies */
 import Control from 'ol/control/Control';
 import { CLASS_CONTROL, CLASS_UNSELECTABLE } from 'ol/css';
 import EventType from 'ol/events/EventType';
