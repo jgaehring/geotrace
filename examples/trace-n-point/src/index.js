@@ -1,11 +1,12 @@
-import Trace from './Trace';
+import geotrace from './geotrace';
 
 const units = 'metric';
 const instance = window.farmOS.map.create('map', { units });
-const layer = instance.addLayer('vector', {
+instance.addLayer('vector', {
   title: 'Drawing',
   group: 'Editable layers',
   color: 'orange',
 });
-const trace = new Trace({ layer, units });
-instance.map.addControl(trace);
+
+const geotraceCtrl = geotrace(instance.map);
+instance.map.addControl(geotraceCtrl);
