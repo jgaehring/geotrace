@@ -2,7 +2,7 @@
  * Based on https://github.com/openlayers/openlayers/blob/main/examples/geolocation-orientation.js
  */
 
-import { Geolocation, Overlay } from 'ol';
+import { Overlay } from 'ol';
 import { Control } from 'ol/control';
 import { CLASS_CONTROL, CLASS_UNSELECTABLE } from 'ol/css';
 import { LineString } from 'ol/geom';
@@ -23,10 +23,9 @@ function negMod(n) {
   return ((n % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
 }
 
-function adjustHeading(positions, geolocation) {
-  const heading = geolocation.getHeading() || 0;
-  const prevCoords = positions.getCoordinates();
-  const previous = prevCoords[prevCoords.length - 1];
+function adjustHeading(trail, heading) {
+  const trailCoords = trail.getCoordinates();
+  const previous = trailCoords[trailCoords.length - 1];
   const prevHeading = previous && previous[2];
 
   if (!prevHeading) return prevHeading;
@@ -39,16 +38,6 @@ function adjustHeading(positions, geolocation) {
   }
   return prevHeading + headingDiff;
 }
-function adjustCoordinates(positions, geolocation) {
-  const [x, y] = geolocation.getPosition();
-  const heading = adjustHeading(positions, geolocation);
-  return [x, y, heading, Date.now()];
-}
-
-// TODO use speed instead (from original comments in example code)
-const toToggleMarker = (whenMoving, whenStationary) => (heading, speed) => (
-  heading && speed ? whenMoving() : whenStationary()
-);
 
 // Recenter the view by shifting the coordinates 3/4 from the top of the map.
 function recenter(view, mapHeight, coordinates) {
@@ -119,51 +108,32 @@ export default function geotrace(map, options = {}) {
   });
   map.addOverlay(marker);
 
-  // FIXME: update URL and use objectEl.data
-  const whenMoving = () => {
-    markerEl.data = '/marker-heading.svg';
-  };
-  const whenStationary = () => {
-    markerEl.data = '/marker.svg';
-  };
-  const toggleMarker = toToggleMarker(whenMoving, whenStationary);
-
-
-  // LineString to store the different geolocation positions. This LineString
-  // is time aware.
+  // An ol LineString to record geolocation positions along the path of travel.
+  // X = longitude; Y = latitude; Z = heading (radians); M = timestamp (ms).
   // The Z dimension is actually used to store the rotation (heading).
-  const positions = new LineString([40.70, -73.90, degToRad(90), Date.now()], 'XYZM');
-
-  // Geolocation Control
-  const geolocation = new Geolocation({
-    projection: view.getProjection(),
-    trackingOptions: {
-      maximumAge: 10000,
-      enableHighAccuracy: true,
-      timeout: 600000,
-    },
-  });
+  const trail = new LineString([40.70, -73.90, degToRad(90), Date.now()], 'XYZM');
 
   let deltaMean = 500; // the geolocation sampling period mean in ms
 
-  // Listen to position changes
-  geolocation.on('change', () => {
-    const position = geolocation.getPosition();
-    const accuracy = geolocation.getAccuracy();
-    const speed = geolocation.getSpeed() || 0;
+  const geolocationWatcher = (position) => {
+    const {
+      latitude, longitude, accuracy, speed,
+    } = position.coords;
 
-    const [x, y, heading, ms] = adjustCoordinates(positions, geolocation);
-    positions.appendCoordinate([x, y, heading, ms]);
+    const heading = adjustHeading(trail, position.coords.heading);
+    const coords = [longitude, latitude, heading, position.timestamp];
+    trail.appendCoordinate(coords);
 
     // only keep the 20 last coordinates
-    positions.setCoordinates(positions.getCoordinates().slice(-20));
+    trail.setCoordinates(trail.getCoordinates().slice(-20));
 
-    toggleMarker(heading, speed);
+    if (heading && speed) markerEl.data = '/marker-heading.svg';
+    else markerEl.data = '/marker.svg';
 
-    const coords = positions.getCoordinates();
-    const len = coords.length;
+    const trailCoords = trail.getCoordinates();
+    const len = trailCoords.length;
     if (len >= 2) {
-      deltaMean = (coords[len - 1][3] - coords[0][3]) / (len - 1);
+      deltaMean = (trailCoords[len - 1][3] - trailCoords[0][3]) / (len - 1);
     }
 
     console.log([
@@ -173,7 +143,7 @@ export default function geotrace(map, options = {}) {
       `Speed: ${(speed * 3.6).toFixed(1)} km/h`,
       `Delta: ${Math.round(deltaMean)}ms`,
     ].join('\n'));
-  });
+  };
 
   // A stateful function that updates the view.
   let previousUpdateInMilliseconds = 0;
@@ -184,7 +154,7 @@ export default function geotrace(map, options = {}) {
     m = Math.max(m, previousUpdateInMilliseconds);
     previousUpdateInMilliseconds = m;
 
-    const coords = positions.getCoordinateAtM(m, true);
+    const coords = trail.getCoordinateAtM(m, true);
     if (coords) {
       const rotation = -coords[2];
       const height = map.getSize()[1];
@@ -201,9 +171,21 @@ export default function geotrace(map, options = {}) {
     tooltip: 'Trace a Path',
     svg: '/marker-heading.svg',
   };
+
+  let watchId = null;
   function geolocateBtnOnClick() {
-    geolocation.setTracking(true); // Start position tracking
-    map.render();
+    if (watchId !== null) {
+      navigator.geolocation.clearWatch(watchId);
+      watchId = null;
+      return;
+    }
+
+    watchId = navigator.geolocation.watchPosition(geolocationWatcher, null, {
+      maximumAge: 10000,
+      enableHighAccuracy: true,
+      timeout: 600000,
+    });
+    updateView();
   }
   const geolocateBtn = attachButton('trace', geolocateBtnOnClick, geolocateBtnOpts);
 
