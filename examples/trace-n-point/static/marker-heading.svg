@@ -1,8 +1,9 @@
+<?xml-stylesheet type="text/css" href="/farmOS-map.css" ?>
 <svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24">
   <mask id="arc">
     <rect x="0" y="0" width="24" height="24" fill="white"/>
     <circle cx="12" cy="16" r="8" fill="black" stroke="none"/>
   </mask>
-  <polygon fill="teal" points="12 2, 18 12, 6 12" mask="url(#arc)"/>
-  <circle cx="12" cy="16" r="6" fill="teal" stroke="none"/>
+  <polygon fill="var(--farmos-map-accent-color)" points="12 2, 18 12, 6 12" mask="url(#arc)"/>
+  <circle cx="12" cy="16" r="6" fill="var(--farmos-map-accent-color)" stroke="none"/>
 </svg>
