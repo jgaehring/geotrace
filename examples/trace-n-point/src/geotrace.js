@@ -154,8 +154,34 @@ export default function geotrace(map, options = {}) {
   const geolocateBtn = createControlButton('trace', geolocateBtnOpts);
   geolocateBtn.addEventListener('click', geolocateBtnOnClick, false);
 
+  function simulatePositionChange(simTrail) {
+    const [current, ...remaining] = simTrail;
+    geolocationWatcher(current);
+    updateView();
+    if (remaining.length <= 0) return;
+    const [next] = remaining;
+    const delay = next.timestamp - current.timestamp;
+    window.setTimeout(() => {
+      simulatePositionChange(remaining);
+    }, delay * 2);
+  }
+  const simulateBtnOpts = {
+    tooltip: 'Trace a Path',
+    html: '&#x1F3C3;',
+  };
+  function simulateBtnOnClick() {
+    if (options.simulate && Array.isArray(options.simulate.data)) {
+      simulatePositionChange(options.simulate.data);
+    }
+  }
+  const simulateBtn = createControlButton('simulate', simulateBtnOpts);
+  simulateBtn.addEventListener('click', simulateBtnOnClick);
+
   const container = options.element || document.createElement('div');
   container.className = `ol-trace ${CLASS_UNSELECTABLE} ${CLASS_CONTROL}`;
   container.appendChild(geolocateBtn);
+  if (options.simulate && Array.isArray(options.simulate.data)) {
+    container.appendChild(simulateBtn);
+  }
   return new Control({ element: container });
 }

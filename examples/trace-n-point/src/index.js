@@ -8,5 +8,11 @@ instance.addLayer('vector', {
   color: 'orange',
 });
 
-const geotraceCtrl = geotrace(instance.map);
-instance.map.addControl(geotraceCtrl);
+const simDataRequest = new XMLHttpRequest();
+simDataRequest.open('GET', 'sim.json');
+simDataRequest.onload = () => {
+  const simulate = JSON.parse(simDataRequest.responseText);
+  const geotraceCtrl = geotrace(instance.map, { simulate });
+  instance.map.addControl(geotraceCtrl);
+};
+simDataRequest.send();
