@@ -40,17 +40,6 @@ function adjustHeading(trail, heading) {
   return prevHeading + headingDiff;
 }
 
-// Recenter the view by shifting the coordinates 3/4 from the top of the map.
-function recenter(view, mapHeight, coordinates) {
-  const resolution = view.getResolution();
-  const rotation = -coordinates[2];
-  const centerCoords = [
-    coordinates[0] - (Math.sin(rotation) * mapHeight * resolution * 1) / 4,
-    coordinates[1] + (Math.cos(rotation) * mapHeight * resolution * 1) / 4,
-  ];
-  view.setCenter(centerCoords);
-}
-
 export default function geotrace(map, options = {}) {
   const view = map.getView();
 
@@ -74,7 +63,7 @@ export default function geotrace(map, options = {}) {
   // An ol LineString to record geolocation positions along the path of travel.
   // X = longitude; Y = latitude; Z = heading (radians); M = timestamp (ms).
   // The Z dimension is actually used to store the rotation (heading).
-  const trail = new LineString([40.70, -73.90, degToRad(90), Date.now()], 'XYZM');
+  const trail = new LineString([40.70, -73.90, degToRad(0), Date.now()], 'XYZM');
 
   let deltaMean = 500; // the geolocation sampling period mean in ms
 
@@ -119,12 +108,12 @@ export default function geotrace(map, options = {}) {
 
     const coords = trail.getCoordinateAtM(m, true);
     if (coords) {
-      const rotation = -coords[2];
-      const height = map.getSize()[1];
+      const centerCoords = fromLonLat([coords[1], coords[0]]);
+      view.setCenter(centerCoords);
+      marker.setPosition(centerCoords);
 
-      recenter(view, height, coords);
+      const rotation = -coords[2];
       view.setRotation(rotation);
-      marker.setPosition(coords);
 
       map.render();
     }
