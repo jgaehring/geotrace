@@ -65,7 +65,10 @@ export default function geotrace(map, options = {}) {
   // The Z dimension is actually used to store the rotation (heading).
   const trail = new LineString([40.70, -73.90, degToRad(0), Date.now()], 'XYZM');
 
-  let deltaMean = 500; // the geolocation sampling period mean in ms
+  // The average interval (in milliseconds) between geolocation updates, half a
+  // a second to start, but recalculated each time based on the past 20 updates.
+  let meanSamplingRate = 500;
+  const sampleSize = 20;
 
   const geolocationWatcher = (position) => {
     const {
@@ -77,15 +80,17 @@ export default function geotrace(map, options = {}) {
     trail.appendCoordinate(coords);
 
     // only keep the 20 last coordinates
-    trail.setCoordinates(trail.getCoordinates().slice(-20));
+    const trailCoords = trail.getCoordinates().slice(-sampleSize);
+    trail.setCoordinates(trailCoords);
 
     if (heading && speed) markerEl.data = '/marker-heading.svg';
     else markerEl.data = '/marker.svg';
 
-    const trailCoords = trail.getCoordinates();
-    const len = trailCoords.length;
-    if (len >= 2) {
-      deltaMean = (trailCoords[len - 1][3] - trailCoords[0][3]) / (len - 1);
+    if (trailCoords.length >= 2) {
+      const timestamps = trailCoords.map(c => c[3]);
+      const [first] = timestamps;
+      const [last] = timestamps.slice(-1);
+      meanSamplingRate = (last - first) / timestamps.length;
     }
 
     console.log([
@@ -93,7 +98,7 @@ export default function geotrace(map, options = {}) {
       `Accuracy: ${accuracy}`,
       `Heading: ${Math.round(radToDeg(heading))}&deg;`,
       `Speed: ${(speed * 3.6).toFixed(1)} km/h`,
-      `Delta: ${Math.round(deltaMean)}ms`,
+      `Delta: ${Math.round(meanSamplingRate)}ms`,
     ].join('\n'));
   };
 
@@ -102,7 +107,7 @@ export default function geotrace(map, options = {}) {
   function updateView() {
 
     // use sampling period to get a smooth transition
-    let m = Date.now() - deltaMean * 1.5;
+    let m = Date.now() - meanSamplingRate * 1.5;
     m = Math.max(m, previousUpdateInMilliseconds);
     previousUpdateInMilliseconds = m;
 
