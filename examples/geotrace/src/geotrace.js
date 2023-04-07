@@ -75,7 +75,20 @@ export default function geotrace(map, options = {}) {
   let meanSamplingRate = 500;
   const sampleSize = 20;
 
-  const geolocationWatcher = (position) => {
+  // The getCoordinateAtM() method will interpolate a value anywhere along the
+  // LineString, so the trail coordinates are sampled from an earlier timespan
+  // between 1 and 2 times the sampling rate in order to keep the motion of the
+  // the position marker smooth and consistent.
+  let previousSampleTimestamp = 0;
+  const sampleTimestamp = (timestamp) => {
+    const sampleTS = previousSampleTimestamp !== 0
+      ? Math.max(timestamp - meanSamplingRate * 1.5, previousSampleTimestamp)
+      : timestamp; // Don't make any adjustments for the first sample timestamp.
+    previousSampleTimestamp = sampleTS;
+    return sampleTS;
+  };
+
+  const updateGeolocation = (position) => {
     const {
       latitude, longitude, accuracy, speed,
     } = position.coords;
@@ -102,29 +115,21 @@ export default function geotrace(map, options = {}) {
       `Speed: ${(speed * 3.6).toFixed(1)} km/h`,
       `Delta: ${Math.round(meanSamplingRate)}ms`,
     ].join('\n'));
-  };
 
-  // A stateful function that updates the view.
-  let previousUpdateInMilliseconds = 0;
-  function updateView() {
+    const sampleTS = sampleTimestamp(position.timestamp);
+    const sampleCoords = trail.getCoordinateAtM(sampleTS, true);
 
-    // use sampling period to get a smooth transition
-    let m = Date.now() - meanSamplingRate * 1.5;
-    m = Math.max(m, previousUpdateInMilliseconds);
-    previousUpdateInMilliseconds = m;
-
-    const coords = trail.getCoordinateAtM(m, true);
-    if (coords) {
-      const centerCoords = fromLonLat([coords[1], coords[0]]);
+    if (sampleCoords) {
+      const centerCoords = fromLonLat(sampleCoords);
       view.setCenter(centerCoords);
       marker.setPosition(centerCoords);
 
-      const rotation = -coords[2];
+      const rotation = -sampleCoords[2];
       view.setRotation(rotation);
 
       map.render();
     }
-  }
+  };
 
   const geolocateBtnOpts = {
     tooltip: 'Trace a Path',
@@ -139,12 +144,11 @@ export default function geotrace(map, options = {}) {
       return;
     }
 
-    watchId = navigator.geolocation.watchPosition(geolocationWatcher, null, {
+    watchId = navigator.geolocation.watchPosition(updateGeolocation, null, {
       maximumAge: 0,
       enableHighAccuracy: true,
       timeout: Infinity,
     });
-    updateView();
   }
 
   const geolocateBtn = createControlButton('trace', geolocateBtnOpts);
@@ -152,8 +156,7 @@ export default function geotrace(map, options = {}) {
 
   function simulatePositionChange(simTrail) {
     const [current, ...remaining] = simTrail;
-    geolocationWatcher(current);
-    updateView();
+    updateGeolocation(current);
     if (remaining.length <= 0) return;
     const [next] = remaining;
     const delay = next.timestamp - current.timestamp;
