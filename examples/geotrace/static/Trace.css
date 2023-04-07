@@ -12,7 +12,11 @@
   pointer-events: none;
 }
 
-.ol-trace.interactive-content-overlay {
+*:has(> .interactive-content-overlay) {
+  position: relative;
+}
+
+.interactive-content-overlay {
   position: absolute;
   top: 0;
   left: 0;
