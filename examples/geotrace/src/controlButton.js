@@ -1,3 +1,6 @@
+// Join valid strings together with a space, but omit undefined or other values.
+const join = (...strings) => strings.filter(s => typeof s === 'string').join(' ');
+
 // To use CSS on an SVG file, without the need to insert a string of raw XML by
 // setting the innerHTML, use an <object> element instead and set its data attribute
 // to the relative URL of the source file.
@@ -13,7 +16,7 @@ export function appendSvgFromUrl(element, src, options) {
    * @see https://developer.mozilla.org/en-US/docs/Web/HTML/Content_categories#interactive_content
    */
   const overlay = document.createElement('div');
-  overlay.className = `${options.className} interactive-content-overlay`;
+  overlay.className = join(options.className, 'interactive-content-overlay');
   element.appendChild(overlay);
 }
 
