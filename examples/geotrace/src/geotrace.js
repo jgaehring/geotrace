@@ -135,9 +135,9 @@ export default function geotrace(map, options = {}) {
     }
 
     watchId = navigator.geolocation.watchPosition(geolocationWatcher, null, {
-      maximumAge: 10000,
+      maximumAge: 0,
       enableHighAccuracy: true,
-      timeout: 600000,
+      timeout: Infinity,
     });
     updateView();
   }
