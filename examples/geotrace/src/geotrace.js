@@ -60,18 +60,6 @@ export default function geotrace(map, options = {}) {
     stopEvent: false,
   });
 
-  if (options.position) {
-    const { coords: { latitude, longitude, heading }, timestamp } = options.position;
-    const rotation = calcRotation(trail, heading);
-    const trailCoords = [longitude, latitude, rotation, timestamp];
-    trail.appendCoordinate(trailCoords);
-    const centerCoords = fromLonLat(trailCoords);
-    marker.setPosition(centerCoords);
-    view.setCenter(centerCoords);
-    view.setZoom(19);
-  }
-  map.addOverlay(marker);
-
   // The average interval (in milliseconds) between geolocation updates, half a
   // a second to start, but recalculated each time based on the past 20 updates.
   let meanSamplingRate = 500;
@@ -128,10 +116,15 @@ export default function geotrace(map, options = {}) {
 
       const sampleRotation = -sampleCoords[2];
       view.setRotation(sampleRotation);
+      view.setZoom(19);
 
       map.render();
     }
   };
+
+  if (options.position) {
+    updateGeolocation(options.position);
+  }
 
   const geolocateBtnOpts = {
     tooltip: 'Trace a Path',
@@ -140,6 +133,8 @@ export default function geotrace(map, options = {}) {
 
   let watchId = null;
   function geolocateBtnOnClick() {
+    map.addOverlay(marker);
+
     if (watchId !== null) {
       navigator.geolocation.clearWatch(watchId);
       watchId = null;
