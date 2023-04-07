@@ -9,12 +9,12 @@ import { LineString } from 'ol/geom';
 import { fromLonLat } from 'ol/proj';
 import createControlButton from './controlButton';
 
-// Convert radians to degrees
+// For converting the map rotation (in radians) to degrees.
 function radToDeg(rad) {
   return (rad * 360) / (Math.PI * 2);
 }
 
-// Convert degrees to radians
+// For converting the heading (in degrees) to radians.
 function degToRad(deg) {
   return (deg * Math.PI * 2) / 360;
 }
@@ -24,20 +24,21 @@ function negMod(n) {
   return ((n % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
 }
 
-function adjustHeading(trail, heading) {
+function calcRotation(trail, heading) {
+  const rotation = degToRad(heading);
   const trailCoords = trail.getCoordinates();
   const previous = trailCoords[trailCoords.length - 1];
-  const prevHeading = previous && previous[2];
+  const prevRotation = previous && previous[2];
 
-  if (!prevHeading) return prevHeading;
+  if (typeof prevRotation !== 'number') return rotation;
 
   // Force the rotation change to be less than 180°.
-  let headingDiff = heading - negMod(prevHeading);
-  if (Math.abs(headingDiff) > Math.PI) {
-    const sign = headingDiff >= 0 ? 1 : -1;
-    headingDiff = -sign * (2 * Math.PI - Math.abs(headingDiff));
+  let rotationDelta = rotation - negMod(prevRotation);
+  if (Math.abs(rotationDelta) > Math.PI) {
+    const sign = rotationDelta >= 0 ? 1 : -1;
+    rotationDelta = -sign * (2 * Math.PI - Math.abs(rotationDelta));
   }
-  return prevHeading + headingDiff;
+  return prevRotation + rotationDelta;
 }
 
 export default function geotrace(map, options = {}) {
@@ -61,7 +62,8 @@ export default function geotrace(map, options = {}) {
 
   if (options.position) {
     const { coords: { latitude, longitude, heading }, timestamp } = options.position;
-    const trailCoords = [longitude, latitude, degToRad(heading), timestamp];
+    const rotation = calcRotation(trail, heading);
+    const trailCoords = [longitude, latitude, rotation, timestamp];
     trail.appendCoordinate(trailCoords);
     const centerCoords = fromLonLat(trailCoords);
     marker.setPosition(centerCoords);
@@ -90,11 +92,11 @@ export default function geotrace(map, options = {}) {
 
   const updateGeolocation = (position) => {
     const {
-      latitude, longitude, accuracy, speed,
+      heading, latitude, longitude, accuracy, speed,
     } = position.coords;
 
-    const heading = adjustHeading(trail, position.coords.heading);
-    const coords = [longitude, latitude, heading, position.timestamp];
+    const rotation = calcRotation(trail, position.coords.heading);
+    const coords = [longitude, latitude, rotation, position.timestamp];
     trail.appendCoordinate(coords);
     const trailCoords = trail.getCoordinates();
 
@@ -124,8 +126,8 @@ export default function geotrace(map, options = {}) {
       view.setCenter(centerCoords);
       marker.setPosition(centerCoords);
 
-      const rotation = -sampleCoords[2];
-      view.setRotation(rotation);
+      const sampleRotation = -sampleCoords[2];
+      view.setRotation(sampleRotation);
 
       map.render();
     }
