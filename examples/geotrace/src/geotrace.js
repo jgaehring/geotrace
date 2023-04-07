@@ -43,9 +43,10 @@ function adjustHeading(trail, heading) {
 export default function geotrace(map, options = {}) {
   const view = map.getView();
 
-  const startCoords = fromLonLat([-73.90, 40.70]);
-  view.setCenter(startCoords);
-  view.setZoom(19);
+  // An ol LineString to record geolocation positions along the path of travel.
+  // X = longitude; Y = latitude; Z = heading (radians); M = timestamp (ms).
+  // The Z dimension is actually used to store the rotation (heading).
+  const trail = new LineString([], 'XYZM');
 
   // Geolocation marker
   const markerEl = document.createElement('object');
@@ -53,17 +54,21 @@ export default function geotrace(map, options = {}) {
   markerEl.type = 'image/svg+xml';
   markerEl.data = '/marker-heading.svg';
   const marker = new Overlay({
-    position: startCoords,
     positioning: 'center-center',
     element: markerEl,
     stopEvent: false,
   });
-  map.addOverlay(marker);
 
-  // An ol LineString to record geolocation positions along the path of travel.
-  // X = longitude; Y = latitude; Z = heading (radians); M = timestamp (ms).
-  // The Z dimension is actually used to store the rotation (heading).
-  const trail = new LineString([40.70, -73.90, degToRad(0), Date.now()], 'XYZM');
+  if (options.position) {
+    const { coords: { latitude, longitude, heading }, timestamp } = options.position;
+    const trailCoords = [longitude, latitude, degToRad(heading), timestamp];
+    trail.appendCoordinate(trailCoords);
+    const centerCoords = fromLonLat(trailCoords);
+    marker.setPosition(centerCoords);
+    view.setCenter(centerCoords);
+    view.setZoom(19);
+  }
+  map.addOverlay(marker);
 
   // The average interval (in milliseconds) between geolocation updates, half a
   // a second to start, but recalculated each time based on the past 20 updates.
