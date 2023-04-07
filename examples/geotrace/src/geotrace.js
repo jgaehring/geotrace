@@ -78,19 +78,16 @@ export default function geotrace(map, options = {}) {
     const heading = adjustHeading(trail, position.coords.heading);
     const coords = [longitude, latitude, heading, position.timestamp];
     trail.appendCoordinate(coords);
-
-    // only keep the 20 last coordinates
-    const trailCoords = trail.getCoordinates().slice(-sampleSize);
-    trail.setCoordinates(trailCoords);
+    const trailCoords = trail.getCoordinates();
 
     if (heading && speed) markerEl.data = '/marker-heading.svg';
     else markerEl.data = '/marker.svg';
 
     if (trailCoords.length >= 2) {
       const timestamps = trailCoords.map(c => c[3]);
-      const [first] = timestamps;
-      const [last] = timestamps.slice(-1);
-      meanSamplingRate = (last - first) / timestamps.length;
+      const [latest] = timestamps.slice(-1);
+      const [earlier] = timestamps.slice(-sampleSize);
+      meanSamplingRate = (latest - earlier) / sampleSize;
     }
 
     console.log([
