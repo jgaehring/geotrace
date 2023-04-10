@@ -167,6 +167,7 @@ export default function geotrace(map, options = {}) {
   };
   function simulateBtnOnClick() {
     if (options.simulate && Array.isArray(options.simulate.data)) {
+      map.addOverlay(marker);
       simulatePositionChange(options.simulate.data);
     }
   }
