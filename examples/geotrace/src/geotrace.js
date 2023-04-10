@@ -43,6 +43,8 @@ function calcRotation(trail, heading) {
 
 export default function geotrace(map, options = {}) {
   const view = map.getView();
+  const baseLayer = options.layer || map.getAllLayers()
+    .find(layer => layer.getProperties().type === 'base');
 
   // An ol LineString to record geolocation positions along the path of travel.
   // X = longitude; Y = latitude; Z = heading (radians); M = timestamp (ms).
@@ -78,13 +80,29 @@ export default function geotrace(map, options = {}) {
     return sampleTS;
   };
 
+  function updateView() {
+    const sampleTS = sampleTimestamp(Date.now());
+    const sampleCoords = trail.getCoordinateAtM(sampleTS, true);
+
+    if (sampleCoords) {
+      const centerCoords = fromLonLat(sampleCoords);
+      view.setCenter(centerCoords);
+      marker.setPosition(centerCoords);
+
+      const sampleRotation = -sampleCoords[2];
+      view.setRotation(sampleRotation);
+
+      map.render();
+    }
+  }
+
   const updateGeolocation = (position) => {
     const {
       heading, latitude, longitude, accuracy, speed,
     } = position.coords;
 
     const rotation = calcRotation(trail, position.coords.heading);
-    const coords = [longitude, latitude, rotation, position.timestamp];
+    const coords = [longitude, latitude, rotation, Date.now()];
     trail.appendCoordinate(coords);
     const trailCoords = trail.getCoordinates();
 
@@ -105,25 +123,12 @@ export default function geotrace(map, options = {}) {
       `Speed: ${(speed * 3.6).toFixed(1)} km/h`,
       `Delta: ${Math.round(meanSamplingRate)}ms`,
     ].join('\n'));
-
-    const sampleTS = sampleTimestamp(position.timestamp);
-    const sampleCoords = trail.getCoordinateAtM(sampleTS, true);
-
-    if (sampleCoords) {
-      const centerCoords = fromLonLat(sampleCoords);
-      view.setCenter(centerCoords);
-      marker.setPosition(centerCoords);
-
-      const sampleRotation = -sampleCoords[2];
-      view.setRotation(sampleRotation);
-      view.setZoom(19);
-
-      map.render();
-    }
   };
 
   if (options.position) {
     updateGeolocation(options.position);
+    updateView();
+    view.setZoom(19);
   }
 
   const geolocateBtnOpts = {
@@ -134,6 +139,8 @@ export default function geotrace(map, options = {}) {
   let watchId = null;
   function geolocateBtnOnClick() {
     map.addOverlay(marker);
+    baseLayer.on(['postcompose', 'postrender'], updateView);
+    map.render();
 
     if (watchId !== null) {
       navigator.geolocation.clearWatch(watchId);
@@ -168,6 +175,8 @@ export default function geotrace(map, options = {}) {
   function simulateBtnOnClick() {
     if (options.simulate && Array.isArray(options.simulate.data)) {
       map.addOverlay(marker);
+      baseLayer.on(['postcompose', 'postrender'], updateView);
+      map.render();
       simulatePositionChange(options.simulate.data);
     }
   }
