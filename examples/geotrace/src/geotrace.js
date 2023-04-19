@@ -9,39 +9,8 @@ import { inAndOut } from 'ol/easing';
 import { LineString } from 'ol/geom';
 import { unByKey } from 'ol/Observable';
 import { fromLonLat } from 'ol/proj';
+import { calcRotation } from './maths';
 import createControlButton from './controlButton';
-
-// For converting the map rotation (in radians) to degrees.
-function radToDeg(rad) {
-  return (rad * 360) / (Math.PI * 2);
-}
-
-// For converting the heading (in degrees) to radians.
-function degToRad(deg) {
-  return (deg * Math.PI * 2) / 360;
-}
-
-// Modulo for negative values
-function negMod(n) {
-  return ((n % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
-}
-
-function calcRotation(trail, heading) {
-  const rotation = degToRad(heading);
-  const trailCoords = trail.getCoordinates();
-  const previous = trailCoords[trailCoords.length - 1];
-  const prevRotation = previous && previous[2];
-
-  if (typeof prevRotation !== 'number') return rotation;
-
-  // Force the rotation change to be less than 180°.
-  let rotationDelta = rotation - negMod(prevRotation);
-  if (Math.abs(rotationDelta) > Math.PI) {
-    const sign = rotationDelta >= 0 ? 1 : -1;
-    rotationDelta = -sign * (2 * Math.PI - Math.abs(rotationDelta));
-  }
-  return prevRotation + rotationDelta;
-}
 
 export function geotrace(map, options = {}) {
   const view = map.getView();
@@ -137,7 +106,7 @@ export function geotrace(map, options = {}) {
     console.log([
       `Position: ${longitude.toFixed(2)}, ${latitude.toFixed(2)}`,
       `Accuracy: ${accuracy}`,
-      `Heading: ${Math.round(radToDeg(heading))}&deg;`,
+      `Heading: ${heading}\u00B0`,
       `Speed: ${(speed * 3.6).toFixed(1)} km/h`,
       `Delta: ${Math.round(meanSamplingRate)}ms`,
     ].join('\n'));
