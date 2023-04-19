@@ -163,50 +163,32 @@ export function geotrace(map, options = {}) {
   };
 }
 
-export function geolocate(map, options) {
-  const geolocateBtnOpts = {
-    tooltip: 'Trace a Path',
-    svg: '/marker-heading.svg',
-  };
-
+export function geolocate(map, options = {}) {
+  const {
+    maximumAge = 0, enableHighAccuracy = true, timeout = Infinity,
+  } = options;
+  const opts = { maximumAge, enableHighAccuracy, timeout };
   const { next, return: cleanup } = geotrace(map, options);
-
-  let watchId = null;
-  function geolocateBtnOnClick() {
-    if (watchId !== null) {
-      navigator.geolocation.clearWatch(watchId);
-      cleanup();
-      watchId = null;
-      return;
-    }
-
-    watchId = navigator.geolocation.watchPosition(next, null, {
-      maximumAge: 0,
-      enableHighAccuracy: true,
-      timeout: Infinity,
-    });
-  }
-
-  const geolocateBtn = createControlButton('trace', geolocateBtnOpts);
-  geolocateBtn.addEventListener('click', geolocateBtnOnClick, false);
-
-  const container = options.element || document.createElement('div');
-  container.className = `ol-trace ${CLASS_UNSELECTABLE} ${CLASS_CONTROL}`;
-  container.appendChild(geolocateBtn);
-  return new Control({ element: container });
+  const watchId = navigator.geolocation.watchPosition(next, null, opts);
+  return function stop() {
+    navigator.geolocation.clearWatch(watchId);
+    cleanup();
+    return null;
+  };
 }
 
-export function geosimulate(map, data, options) {
-  if (!Array.isArray(data)) {
-    throw new Error('missing simulate options');
+export function geosimulate(map, options = {}) {
+  const { simulate: data } = options;
+  if (!data || !Array.isArray(data)) {
+    throw new Error('Invalid geosimulate data');
   }
 
   const { next, return: cleanup } = geotrace(map, options);
 
   function simulatePositionChange(simTrail) {
     const [currentPosition, ...remaining] = simTrail;
-    next(currentPosition);
-    if (remaining.length <= 0) {
+    const { done } = next(currentPosition) || {};
+    if (done || remaining.length <= 0) {
       cleanup();
       return;
     }
@@ -216,15 +198,27 @@ export function geosimulate(map, data, options) {
       simulatePositionChange(remaining);
     }, delay * 2);
   }
-  const simulateBtnOpts = {
+  simulatePositionChange(data);
+
+  return cleanup;
+}
+
+export default function geotraceCtrl(map, options) {
+  let stop = null;
+  const start = options.simulate ? geosimulate : geolocate;
+
+  const button = createControlButton('trace', {
     tooltip: 'Trace a Path',
-    html: '&#x1F3C3;',
-  };
-  const simulateBtn = createControlButton('simulate', simulateBtnOpts);
-  simulateBtn.addEventListener('click', () => simulatePositionChange(data));
+    svg: '/marker-heading.svg',
+  });
+  button.addEventListener('click', () => {
+    if (typeof stop === 'function') stop = stop();
+    else stop = start(map, options);
+  }, false);
 
   const container = options.element || document.createElement('div');
   container.className = `ol-trace ${CLASS_UNSELECTABLE} ${CLASS_CONTROL}`;
-  container.appendChild(simulateBtn);
+  container.appendChild(button);
+
   return new Control({ element: container });
 }
