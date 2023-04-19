@@ -41,6 +41,12 @@ export function geotrace(map, options = {}) {
   });
   map.addOverlay(marker);
 
+  function updateMarkerIcon(rotation) {
+    const { pathname: prev } = new URL(markerEl.data);
+    const next = typeof rotation === 'number' ? '/marker-heading.svg' : '/marker.svg';
+    if (prev !== next) markerEl.data = next;
+  }
+
   // The average interval (in milliseconds) between geolocation updates, half a
   // a second to start, but recalculated each time based on the past 20 updates.
   let meanSamplingRate = 500;
@@ -68,7 +74,10 @@ export function geotrace(map, options = {}) {
     // Format the sample coordinates the way OpenLayers likes.
     const [lon, lat, rotation] = sampleCoords;
     const centerCoords = fromLonLat([lon, lat]);
+
+    // Update the marker's position and icon.
     marker.setPosition(centerCoords);
+    updateMarkerIcon(rotation);
 
     // Recenter and rotate the the map view if that option is set to true, but
     // otherwise just rotate the marker overlay itself; the overlay will autopan
@@ -92,9 +101,6 @@ export function geotrace(map, options = {}) {
     const coords = [longitude, latitude, rotation, Date.now()];
     trail.appendCoordinate(coords);
     const trailCoords = trail.getCoordinates();
-
-    if (heading && speed) markerEl.data = '/marker-heading.svg';
-    else markerEl.data = '/marker.svg';
 
     if (trailCoords.length >= 2) {
       const timestamps = trailCoords.map(c => c[3]);
