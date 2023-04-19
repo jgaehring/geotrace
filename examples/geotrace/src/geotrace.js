@@ -5,6 +5,7 @@
 import { Overlay } from 'ol';
 import { Control } from 'ol/control';
 import { CLASS_CONTROL, CLASS_UNSELECTABLE } from 'ol/css';
+import { inAndOut } from 'ol/easing';
 import { LineString } from 'ol/geom';
 import { unByKey } from 'ol/Observable';
 import { fromLonLat } from 'ol/proj';
@@ -61,7 +62,15 @@ export function geotrace(map, options = {}) {
     positioning: 'center-center',
     element: markerEl,
     stopEvent: false,
+    autoPan: {
+      margin: 20,
+      animation: {
+        duration: 1000,
+        easing: inAndOut,
+      },
+    },
   });
+  map.addOverlay(marker);
 
   // The average interval (in milliseconds) between geolocation updates, half a
   // a second to start, but recalculated each time based on the past 20 updates.
@@ -85,16 +94,24 @@ export function geotrace(map, options = {}) {
     const sampleTS = sampleTimestamp(Date.now());
     const sampleCoords = trail.getCoordinateAtM(sampleTS, true);
 
-    if (sampleCoords) {
-      const centerCoords = fromLonLat(sampleCoords);
+    if (!Array.isArray(sampleCoords)) return;
+
+    // Format the sample coordinates the way OpenLayers likes.
+    const [lon, lat, rotation] = sampleCoords;
+    const centerCoords = fromLonLat([lon, lat]);
+    marker.setPosition(centerCoords);
+
+    // Recenter and rotate the the map view if that option is set to true, but
+    // otherwise just rotate the marker overlay itself; the overlay will autopan
+    // if it starts to go out of the viewbox.
+    if (options.recenter) {
       view.setCenter(centerCoords);
-      marker.setPosition(centerCoords);
-
-      const sampleRotation = -sampleCoords[2];
-      view.setRotation(sampleRotation);
-
-      map.render();
+      view.setRotation(-rotation);
+    } else {
+      markerEl.style.rotate = `${rotation}rad`;
     }
+
+    map.render();
   }
 
   const updateGeolocation = (position) => {
@@ -131,13 +148,33 @@ export function geotrace(map, options = {}) {
     };
   };
 
+  // An initial position option can be provided, to kick off the tracing operation.
   if (options.position) {
-    updateGeolocation(options.position);
-    updateView();
+    const { position } = options;
+    updateGeolocation(position);
+
+    // Format the initial position coords the way OpenLayers likes.
+    const { coords: { latitude, longitude, heading } } = position;
+    const rotation = calcRotation(trail, heading);
+    const coords = fromLonLat([longitude, latitude]);
+
+    // Set the marker position and rotation.
+    marker.setPosition(coords);
+    markerEl.style.rotate = `${rotation}rad`;
+
+    // Recenter here, at the beginning, regardless of whether the recenter option
+    // has been set, then zoom and render to get things started.
+    view.setCenter(coords);
     view.setZoom(19);
+    map.render();
   }
 
-  map.addOverlay(marker);
+  /**
+   * Using the postrender (postcompose in OpenLayers v. 5 or earlier) produces
+   * a smoother animation, for whatever reason. Specific documentation on this
+   * seems to be lacking, but it is illustrated in the example linked below.
+   * @see https://openlayers.org/en/latest/examples/feature-move-animation.html
+   */
   const renderKey = baseLayer.on(['postcompose', 'postrender'], updateView);
   map.render();
 
