@@ -2,13 +2,17 @@
  * Based on https://github.com/openlayers/openlayers/blob/main/examples/geolocation-orientation.js
  */
 
-import { Overlay } from 'ol';
+import { Feature, Overlay } from 'ol';
 import { Control } from 'ol/control';
 import { CLASS_CONTROL, CLASS_UNSELECTABLE } from 'ol/css';
 import { inAndOut } from 'ol/easing';
 import { LineString } from 'ol/geom';
+import VectorLayer from 'ol/layer/Vector';
 import { unByKey } from 'ol/Observable';
 import { fromLonLat } from 'ol/proj';
+import VectorSource from 'ol/source/Vector';
+import Style from 'ol/style/Style';
+import Stroke from 'ol/style/Stroke';
 import { calcRotation } from './maths';
 import createControlButton from './controlButton';
 
@@ -21,6 +25,26 @@ export function geotrace(map, options = {}) {
   // X = longitude; Y = latitude; Z = heading (radians); M = timestamp (ms).
   // The Z dimension is actually used to store the rotation (heading).
   const trail = new LineString([], 'XYZM');
+
+  // A separate linestring will actually display the trail while geotracing.
+  const preview = new LineString([], 'XY');
+  const previewLayer = new VectorLayer({
+    title: 'Geotrace',
+    visible: true,
+    source: new VectorSource({
+      features: [new Feature({
+        type: 'trail',
+        geometry: preview,
+      })],
+    }),
+    style: new Style({
+      stroke: new Stroke({
+        width: 6,
+        color: [51, 153, 255, 1],
+      }),
+    }),
+  });
+  map.addLayer(previewLayer);
 
   // Geolocation marker
   const markerEl = document.createElement('object');
@@ -97,11 +121,17 @@ export function geotrace(map, options = {}) {
       heading, latitude, longitude, accuracy, speed,
     } = position.coords;
 
+    // Update the main trail coordinates.
     const rotation = calcRotation(trail, position.coords.heading);
     const coords = [longitude, latitude, rotation, Date.now()];
     trail.appendCoordinate(coords);
-    const trailCoords = trail.getCoordinates();
 
+    // The prevew trail must be updated separately.
+    const previewCoords = fromLonLat([longitude, latitude]);
+    preview.appendCoordinate(previewCoords);
+
+    // Recalculate the mean samplng rate.
+    const trailCoords = trail.getCoordinates();
     if (trailCoords.length >= 2) {
       const timestamps = trailCoords.map(c => c[3]);
       const [latest] = timestamps.slice(-1);
