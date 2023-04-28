@@ -97,17 +97,20 @@ export function geotrace(map, options = {}) {
 
     // Format the sample coordinates the way OpenLayers likes.
     const [lon, lat, rotation] = sampleCoords;
-    const centerCoords = fromLonLat([lon, lat]);
+    const coords = fromLonLat([lon, lat]);
 
     // Update the marker's position and icon.
-    marker.setPosition(centerCoords);
+    marker.setPosition(coords);
     updateMarkerIcon(rotation);
+
+    // Update the prevew trail here with the marker, rather than with the main trail.
+    preview.appendCoordinate(coords);
 
     // Recenter and rotate the the map view if that option is set to true, but
     // otherwise just rotate the marker overlay itself; the overlay will autopan
     // if it starts to go out of the viewbox.
     if (options.recenter) {
-      view.setCenter(centerCoords);
+      view.setCenter(coords);
       view.setRotation(-rotation);
     } else {
       markerEl.style.rotate = `${rotation}rad`;
@@ -125,10 +128,6 @@ export function geotrace(map, options = {}) {
     const rotation = calcRotation(trail, position.coords.heading);
     const coords = [longitude, latitude, rotation, Date.now()];
     trail.appendCoordinate(coords);
-
-    // The prevew trail must be updated separately.
-    const previewCoords = fromLonLat([longitude, latitude]);
-    preview.appendCoordinate(previewCoords);
 
     // Recalculate the mean samplng rate.
     const trailCoords = trail.getCoordinates();
