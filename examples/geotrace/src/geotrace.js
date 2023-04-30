@@ -119,7 +119,7 @@ export function geotrace(map, options = {}) {
     map.render();
   }
 
-  const updateGeolocation = (position) => {
+  function updateGeolocation(position) {
     const {
       heading, latitude, longitude, accuracy, speed,
     } = position.coords;
@@ -146,11 +146,8 @@ export function geotrace(map, options = {}) {
       `Delta: ${Math.round(meanSamplingRate)}ms`,
     ].join('\n'));
 
-    return {
-      value: trail,
-      done: false,
-    };
-  };
+    return trail;
+  }
 
   // An initial position option can be provided, to kick off the tracing operation.
   if (options.position) {
@@ -188,7 +185,12 @@ export function geotrace(map, options = {}) {
   }
 
   return {
-    next: updateGeolocation,
+    next(position) {
+      return {
+        value: updateGeolocation(position),
+        done: false,
+      };
+    },
     return(value) {
       if (typeof options.cleanup === 'function') options.cleanup(value);
       cleanup();
