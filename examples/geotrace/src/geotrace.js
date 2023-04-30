@@ -170,7 +170,6 @@ export function geotrace(map, options = {}) {
     // has been set, then zoom and render to get things started.
     view.setCenter(coords);
     view.setZoom(19);
-    map.render();
   }
 
   /**
