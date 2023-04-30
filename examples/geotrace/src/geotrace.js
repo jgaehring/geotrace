@@ -16,7 +16,7 @@ import Stroke from 'ol/style/Stroke';
 import { calcRotation } from './maths';
 import createControlButton from './controlButton';
 
-export function geotrace(map, options = {}) {
+export function* geotrace(map, options = {}) {
   const view = map.getView();
   const baseLayer = options.layer || map.getAllLayers()
     .find(layer => layer.getProperties().type === 'base');
@@ -119,7 +119,10 @@ export function geotrace(map, options = {}) {
     map.render();
   }
 
+  let done = false;
   function updateGeolocation(position) {
+    if (position === -1) done = true;
+    if (!position || !position.coords || done) return trail;
     const {
       heading, latitude, longitude, accuracy, speed,
     } = position.coords;
@@ -178,31 +181,13 @@ export function geotrace(map, options = {}) {
   const renderKey = baseLayer.on(['postcompose', 'postrender'], updateView);
   map.render();
 
-  function cleanup() {
-    unByKey(renderKey);
-    map.removeOverlay(marker);
-    map.render();
-  }
+  while (!done) updateGeolocation(yield);
 
-  return {
-    next(position) {
-      return {
-        value: updateGeolocation(position),
-        done: false,
-      };
-    },
-    return(value) {
-      if (typeof options.cleanup === 'function') options.cleanup(value);
-      cleanup();
-      return { value, done: true };
-    },
-    throw(reason) {
-      const exception = new Error(reason);
-      if (typeof options.onerror === 'function') options.onerror(exception);
-      cleanup();
-      return { exception, done: true };
-    },
-  };
+  unByKey(renderKey);
+  map.removeOverlay(marker);
+  map.render();
+
+  return updateGeolocation();
 }
 
 export function geolocate(map, options = {}) {
@@ -210,13 +195,14 @@ export function geolocate(map, options = {}) {
     maximumAge = 0, enableHighAccuracy = true, timeout = Infinity,
   } = options;
   const opts = { maximumAge, enableHighAccuracy, timeout };
-  const { next, return: cleanup } = geotrace(map, options);
-  const watchId = navigator.geolocation.watchPosition(next, null, opts);
-  return function stop() {
-    navigator.geolocation.clearWatch(watchId);
-    cleanup();
-    return null;
+  const tracer = geotrace(map, options);
+  let watchId;
+  const watcher = (position) => {
+    const { done } = tracer.next(position);
+    if (done) navigator.geolocation.clearWatch(watchId);
   };
+  watchId = navigator.geolocation.watchPosition(watcher, null, opts);
+  return tracer;
 }
 
 export function geosimulate(map, options = {}) {
@@ -225,28 +211,25 @@ export function geosimulate(map, options = {}) {
     throw new Error('Invalid geosimulate data');
   }
 
-  const { next, return: cleanup } = geotrace(map, options);
-
+  const tracer = geotrace(map, options);
   function simulatePositionChange(simTrail) {
     const [currentPosition, ...remaining] = simTrail;
-    const { done } = next(currentPosition) || {};
-    if (done || remaining.length <= 0) {
-      cleanup();
-      return;
-    }
+    const { value, done } = tracer.next(currentPosition) || {};
+    if (done || remaining.length <= 0) return tracer.return(value);
     const [nextPosition] = remaining;
     const delay = nextPosition.timestamp - currentPosition.timestamp;
     window.setTimeout(() => {
       simulatePositionChange(remaining);
     }, delay * 2);
+    return value;
   }
   simulatePositionChange(data);
 
-  return cleanup;
+  return tracer;
 }
 
 export default function geotraceCtrl(map, options) {
-  let stop = null;
+  let tracer = {};
   const start = options.simulate ? geosimulate : geolocate;
 
   const button = createControlButton('trace', {
@@ -254,8 +237,8 @@ export default function geotraceCtrl(map, options) {
     svg: '/marker-heading.svg',
   });
   button.addEventListener('click', () => {
-    if (typeof stop === 'function') stop = stop();
-    else stop = start(map, options);
+    if (typeof tracer.return === 'function') tracer = tracer.return();
+    else tracer = start(map, options);
   }, false);
 
   const container = options.element || document.createElement('div');
