@@ -185,6 +185,7 @@ export function* geotrace(map, options = {}) {
 
   unByKey(renderKey);
   map.removeOverlay(marker);
+  map.removeLayer(previewLayer);
   map.render();
 
   return trail;
