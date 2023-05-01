@@ -121,8 +121,8 @@ export function* geotrace(map, options = {}) {
 
   let done = false;
   function updateGeolocation(position) {
-    if (position === -1) done = true;
-    if (!position || !position.coords || done) return trail;
+    if (position.done) done = true;
+    if (!position.coords || position.omit || done) return trail;
     const {
       heading, latitude, longitude, accuracy, speed,
     } = position.coords;
@@ -187,7 +187,7 @@ export function* geotrace(map, options = {}) {
   map.removeOverlay(marker);
   map.render();
 
-  return updateGeolocation();
+  return trail;
 }
 
 export function geolocate(map, options = {}) {
@@ -197,7 +197,10 @@ export function geolocate(map, options = {}) {
   const opts = { maximumAge, enableHighAccuracy, timeout };
   const tracer = geotrace(map, options);
   let watchId;
-  const watcher = (position) => {
+  const watcher = (rawPosition) => {
+    const position = typeof options.transformPosition === 'function'
+      ? options.transformPosition(rawPosition)
+      : rawPosition;
     const { done } = tracer.next(position);
     if (done) navigator.geolocation.clearWatch(watchId);
   };
@@ -214,7 +217,10 @@ export function geosimulate(map, options = {}) {
   const tracer = geotrace(map, options);
   function simulatePositionChange(simTrail) {
     const [currentPosition, ...remaining] = simTrail;
-    const { value, done } = tracer.next(currentPosition) || {};
+    const position = typeof options.transformPosition === 'function'
+      ? options.transformPosition(currentPosition)
+      : currentPosition;
+    const { value, done } = tracer.next(position) || {};
     if (done || remaining.length <= 0) return tracer.return(value);
     const [nextPosition] = remaining;
     const delay = nextPosition.timestamp - currentPosition.timestamp;
@@ -229,21 +235,60 @@ export function geosimulate(map, options = {}) {
 }
 
 export default function geotraceCtrl(map, options) {
-  let tracer = {};
-  const start = options.simulate ? geosimulate : geolocate;
+  let tracer = null; let paused = false;
+
+  const transformPosition = position => (paused ? { ...position, omit: true } : position);
+  const startFn = options.simulate ? geosimulate : geolocate;
+  const startOpts = { ...options, transformPosition };
+  const start = () => startFn(map, startOpts);
 
   const button = createControlButton('trace', {
     tooltip: 'Trace a Path',
     svg: '/marker-heading.svg',
   });
-  button.addEventListener('click', () => {
-    if (typeof tracer.return === 'function') tracer = tracer.return();
-    else tracer = start(map, options);
-  }, false);
-
   const container = options.element || document.createElement('div');
   container.className = `ol-trace ${CLASS_UNSELECTABLE} ${CLASS_CONTROL}`;
   container.appendChild(button);
+
+  button.addEventListener('click', () => {
+    if (!tracer) tracer = start();
+
+    const startButton = createControlButton('trace', {
+      tooltip: 'Start Tracing',
+      html: '▶️',
+    });
+    startButton.addEventListener('click', () => {
+      if (tracer && typeof tracer.next === 'function') paused = !paused;
+    }, false);
+    container.appendChild(startButton);
+
+    const pauseButton = createControlButton('trace', {
+      tooltip: 'Pause Tracing',
+      html: '⏸️',
+    });
+    pauseButton.addEventListener('click', () => {
+      if (tracer && typeof tracer.next === 'function') paused = !paused;
+    }, false);
+    container.appendChild(pauseButton);
+
+    const stopButton = createControlButton('trace', {
+      tooltip: 'Stop Tracing',
+      html: '⏹️',
+    });
+    stopButton.addEventListener('click', () => {
+      if (tracer && typeof tracer.next === 'function') {
+        tracer.next({ done: true });
+        tracer.return();
+        tracer = null;
+
+        startButton.remove();
+        pauseButton.remove();
+        stopButton.remove();
+      }
+    }, false);
+    container.appendChild(stopButton);
+
+  }, false);
 
   return new Control({ element: container });
 }
