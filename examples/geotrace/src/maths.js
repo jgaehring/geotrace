@@ -15,10 +15,8 @@ export function negMod(n) {
 
 // Takes an ol LinestString as the trail, plus a heading in degrees, to calculate
 // the rotation value in the format ol prefers.
-export function calcRotation(trail, heading) {
+export function calcRotation(previous, heading) {
   const rotation = degToRad(heading);
-  const trailCoords = trail.getCoordinates();
-  const previous = trailCoords[trailCoords.length - 1];
   const prevRotation = previous && previous[2];
 
   if (typeof prevRotation !== 'number') return rotation;
