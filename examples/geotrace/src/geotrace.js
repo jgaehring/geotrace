@@ -14,7 +14,7 @@ import VectorSource from 'ol/source/Vector';
 import Style from 'ol/style/Style';
 import Stroke from 'ol/style/Stroke';
 import { calcRotation } from './maths';
-import createControlButton from './controlButton';
+import { createControlButton, createLiveControl } from './controlButton';
 
 export function* geotrace(map, options = {}) {
   const view = map.getView();
@@ -294,36 +294,45 @@ export default function geotraceCtrl(map, options) {
   const startOpts = { ...options, transformPosition };
   const start = () => startFn(map, startOpts);
 
-  const button = createControlButton('trace', {
+  const mainCtrl = createControlButton('trace', {
     tooltip: 'Trace a Path',
     svg: '/marker-heading.svg',
   });
-  const container = options.element || document.createElement('div');
-  container.className = `ol-trace ${CLASS_UNSELECTABLE} ${CLASS_CONTROL}`;
-  container.appendChild(button);
+  const ctrlContainer = options.element || document.createElement('div');
+  ctrlContainer.className = `ol-trace ${CLASS_UNSELECTABLE} ${CLASS_CONTROL}`;
+  ctrlContainer.appendChild(mainCtrl);
 
-  button.addEventListener('click', () => {
+  mainCtrl.addEventListener('click', () => {
     if (!tracer) tracer = start();
 
-    const startButton = createControlButton('trace', {
+    const viewPort = map.getViewport();
+    const liveContainer = document.createElement('div');
+    liveContainer.className = 'geotrace-container';
+    viewPort.appendChild(liveContainer);
+
+    const liveCtrls = document.createElement('div');
+    liveCtrls.className = 'geotrace-live-ctrl-container';
+    liveContainer.appendChild(liveCtrls);
+
+    const startButton = createLiveControl('start', {
       tooltip: 'Start Tracing',
       html: '▶️',
     });
     startButton.addEventListener('click', () => {
       if (tracer && typeof tracer.next === 'function') paused = !paused;
     }, false);
-    container.appendChild(startButton);
+    liveCtrls.appendChild(startButton);
 
-    const pauseButton = createControlButton('trace', {
+    const pauseButton = createLiveControl('pause', {
       tooltip: 'Pause Tracing',
       html: '⏸️',
     });
     pauseButton.addEventListener('click', () => {
       if (tracer && typeof tracer.next === 'function') paused = !paused;
     }, false);
-    container.appendChild(pauseButton);
+    liveCtrls.appendChild(pauseButton);
 
-    const stopButton = createControlButton('trace', {
+    const stopButton = createLiveControl('stop', {
       tooltip: 'Stop Tracing',
       html: '⏹️',
     });
@@ -338,9 +347,9 @@ export default function geotraceCtrl(map, options) {
         stopButton.remove();
       }
     }, false);
-    container.appendChild(stopButton);
+    liveCtrls.appendChild(stopButton);
 
   }, false);
 
-  return new Control({ element: container });
+  return new Control({ element: ctrlContainer });
 }

@@ -23,3 +23,17 @@
   height: 100%;
   width: 100%;
 }
+
+.geotrace-container {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+}
+
+.geotrace-live-ctrl-container {
+  position: absolute;
+  height: fit-content;
+  width: fit-content;
+  bottom: 64px;
+  left: calc(50% - 32px);
+}
