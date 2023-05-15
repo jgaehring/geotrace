@@ -32,8 +32,36 @@
 
 .geotrace-live-ctrl-container {
   position: absolute;
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
   height: fit-content;
-  width: fit-content;
+  width: 100%;
   bottom: 64px;
-  left: calc(50% - 32px);
+  left: 0;
+}
+
+.geotrace-start,
+.geotrace-pause,
+.geotrace-stop {
+  height: 64px;
+  width: 64px;
+}
+
+.geotrace-start svg > rect {
+  width: 15px;
+  height: 15px;
+  x: 4.5;
+  y: 4.5;
+  rx: 2;
+  transition: all 150ms ease-in-out;
+}
+
+.geotrace-start.paused svg > rect {
+  width: 20px;
+  height: 20px;
+  x: 2;
+  y: 2;
+  rx: 10;
+  transition: all 150ms ease-in-out;
 }

@@ -14,7 +14,7 @@ import VectorSource from 'ol/source/Vector';
 import Style from 'ol/style/Style';
 import Stroke from 'ol/style/Stroke';
 import { calcRotation } from './maths';
-import { createControlButton, createLiveControl } from './controlButton';
+import { createControlButton } from './controlButton';
 
 export function* geotrace(map, options = {}) {
   const view = map.getView();
@@ -314,40 +314,36 @@ export default function geotraceCtrl(map, options) {
     liveCtrls.className = 'geotrace-live-ctrl-container';
     liveContainer.appendChild(liveCtrls);
 
-    const startButton = createLiveControl('start', {
-      tooltip: 'Start Tracing',
-      html: '▶️',
-    });
-    startButton.addEventListener('click', () => {
-      if (tracer && typeof tracer.next === 'function') paused = !paused;
-    }, false);
-    liveCtrls.appendChild(startButton);
+    const resumeTitle = 'Resume Tracing';
+    const pauseTitle = 'Pause Tracing';
+    const pausedClassName = 'paused';
 
-    const pauseButton = createLiveControl('pause', {
-      tooltip: 'Pause Tracing',
-      html: '⏸️',
-    });
-    pauseButton.addEventListener('click', () => {
-      if (tracer && typeof tracer.next === 'function') paused = !paused;
-    }, false);
-    liveCtrls.appendChild(pauseButton);
+    const recordButton = document.createElement('div');
+    const recordName = 'start';
+    recordButton.name = recordName;
+    recordButton.type = 'button';
+    const className = `geotrace-${recordName}`;
+    recordButton.className = `${className} ${className}-live-ctrl`;
+    recordButton.title = pauseTitle;
 
-    const stopButton = createLiveControl('stop', {
-      tooltip: 'Stop Tracing',
-      html: '⏹️',
-    });
-    stopButton.addEventListener('click', () => {
+    const recordSVG = `
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <mask id="ring">
+          <rect x="0" y="0" width="24" height="24" fill="white"/>
+          <circle cx="12" cy="12" r="11" fill="black" stroke="none"/>
+        </mask>
+        <circle cx="12" cy="12" r="12" fill="white" stroke="none" mask="url(#ring)"/>
+        <rect width="20" height="20" x="2" y="2" rx="10" fill="red"/>
+      </svg>
+    `;
+    recordButton.innerHTML = recordSVG;
+    recordButton.addEventListener('click', () => {
       if (tracer && typeof tracer.next === 'function') {
-        tracer.next({ done: true });
-        tracer.return();
-        tracer = null;
-
-        startButton.remove();
-        pauseButton.remove();
-        stopButton.remove();
+        paused = recordButton.classList.toggle(pausedClassName);
+        recordButton.title = paused ? resumeTitle : pauseTitle;
       }
     }, false);
-    liveCtrls.appendChild(stopButton);
+    liveCtrls.appendChild(recordButton);
 
   }, false);
 
