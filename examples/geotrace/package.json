@@ -1,0 +1,26 @@
+{
+  "name": "farmos-map-geotrace",
+  "version": "0.0.1",
+  "description": "Geotracing behaviors with farmOS-map.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": {
+    "name" : "Jamie Gaehring",
+    "email" : "gaehj457@gmail.com",
+    "url" : "https://jgaehring.com"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jgaehring/geotrace.git"
+  },
+  "keywords": [
+    "farmOS"
+  ],
+  "bugs": {
+    "url": "https://github.com/jgaehring/geotrace/issues"
+  },
+  "homepage": "https://github.com/jgaehring/geotrace#readme"
+}
