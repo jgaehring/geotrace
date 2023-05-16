@@ -1,4 +1,4 @@
-import geotraceCtrl from './geotrace';
+import geotraceCtrl from '../../lib/geotrace';
 
 const units = 'metric';
 const instance = window.farmOS.map.create('map', { units });

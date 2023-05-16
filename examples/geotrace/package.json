@@ -1,7 +1,7 @@
 {
-  "name": "farmos-map-geotrace",
+  "name": "farmos-map-geotrace-example",
   "version": "0.0.1",
-  "description": "Geotracing behaviors with farmOS-map.",
+  "description": "An example of using farmOS-map with geotracing behaviors",
   "main": "index.js",
   "scripts": {
     "build": "webpack --mode production",
@@ -16,32 +16,8 @@
     "url" : "https://jgaehring.com"
   },
   "license": "MIT",
-  "devDependencies": {
-    "bundle-loader": "^0.5.6",
-    "compression": "^1.7.4",
-    "copy-webpack-plugin": "^8.1.1",
-    "html-webpack-plugin": "^5.3.1",
-    "jest": "^26.6.3",
-    "jest-puppeteer": "^5.0.3",
-    "puppeteer": "^9.1.1",
-    "source-map-loader": "^4.0.1",
-    "uuid": "^3.4.0",
-    "webpack": "^5.36.0",
-    "webpack-cli": "^4.6.0",
-    "webpack-dev-server": "^4.0.0-beta.2"
-  },
-  "peerDependencies": {
+  "dependencies": {
+    "@farmos.org/farmos-map": "2.2.1",
     "ol": "^6.14.1"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/jgaehring/geotrace.git"
-  },
-  "keywords": [
-    "farmOS"
-  ],
-  "bugs": {
-    "url": "https://github.com/jgaehring/geotrace/issues"
-  },
-  "homepage": "https://github.com/jgaehring/geotrace#readme"
+  }
 }
