@@ -11,9 +11,9 @@
     "test": "jest  --verbose=true --config $(pwd)/../test/jest.config.js"
   },
   "author": {
-    "name" : "Jamie Gaehring",
-    "email" : "gaehj457@gmail.com",
-    "url" : "https://jgaehring.com"
+    "name": "Jamie Gaehring",
+    "email": "gaehj457@gmail.com",
+    "url": "https://jgaehring.com"
   },
   "license": "MIT",
   "dependencies": {
