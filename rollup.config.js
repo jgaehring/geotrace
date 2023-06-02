@@ -3,7 +3,7 @@ import svg from 'rollup-plugin-svg';
 import css from "rollup-plugin-import-css";
 
 const baseConfig = {
-  input: 'src/geotrace.js',
+  input: 'src/index.js',
   output: {
     file: 'dist/geotrace.js',
     format: 'esm'
