@@ -2,9 +2,14 @@
   "name": "farmos-map-geotrace",
   "version": "0.0.1",
   "description": "Geotracing behaviors with farmOS-map.",
-  "main": "lib/index.js",
+  "main": "dist/geotrace.umd.js",
+  "module": "dist/geotrace.esm.js",
   "type": "module",
   "scripts": {
+    "build": "rollup --config",
+    "dev": "rollup --config --watch",
+    "prepare": "npm run build",
+    "start": "npm run dev",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": {
@@ -29,5 +34,11 @@
   "bugs": {
     "url": "https://github.com/jgaehring/geotrace/issues"
   },
-  "homepage": "https://github.com/jgaehring/geotrace#readme"
+  "homepage": "https://github.com/jgaehring/geotrace#readme",
+  "devDependencies": {
+    "@rollup/plugin-node-resolve": "^15.1.0",
+    "rollup": "^3.23.0",
+    "rollup-plugin-import-css": "^3.2.1",
+    "rollup-plugin-svg": "^2.0.0"
+  }
 }
