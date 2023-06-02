@@ -17,7 +17,7 @@ import { calcRotation } from './maths';
 import { createControlButton } from './controlButton';
 import markerSVG from './assets/marker.svg';
 import markerHeadingSVG from './assets/marker-heading.svg';
-import './assets/Trace.css';
+import './assets/main.css';
 
 export function* geotrace(map, options = {}) {
   const view = map.getView();
