@@ -69,10 +69,13 @@ export function* geotrace(map, options = {}) {
   });
   map.addOverlay(marker);
 
+  let showHeadingPrev = false;
   function updateMarkerIcon(rotation) {
-    const { pathname: prev } = new URL(markerEl.data);
-    const next = typeof rotation === 'number' ? markerHeadingSVG : markerSVG;
-    if (prev !== next) markerEl.innerHTML = next;
+    const showHeadingNext = typeof rotation === 'number';
+    if (showHeadingPrev !== showHeadingNext) {
+      markerEl.innerHTML = showHeadingNext ? markerHeadingSVG : markerSVG;
+      showHeadingPrev = showHeadingNext;
+    }
   }
 
   // This sample geometry is never displayed and only contains the range of
