@@ -52,7 +52,7 @@ export function* geotrace(map, options = {}) {
   map.addLayer(previewLayer);
 
   // Geolocation marker
-  const markerEl = document.createElement('button');
+  const markerEl = document.createElement('div');
   markerEl.id = 'trace-marker';
   markerEl.innerHTML = markerSVG;
   const marker = new Overlay({
