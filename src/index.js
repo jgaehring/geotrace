@@ -14,7 +14,6 @@ import VectorSource from 'ol/source/Vector';
 import Style from 'ol/style/Style';
 import Stroke from 'ol/style/Stroke';
 import { calcRotation } from './maths';
-import { createControlButton } from './controlButton';
 import markerSVG from './assets/marker.svg';
 import markerHeadingSVG from './assets/marker-heading.svg';
 import './assets/main.css';
@@ -299,10 +298,13 @@ export default function geotraceCtrl(map, options) {
   const startOpts = { ...options, transformPosition };
   const start = () => startFn(map, startOpts);
 
-  const mainCtrl = createControlButton('trace', {
-    tooltip: 'Trace a Path',
-    html: markerHeadingSVG,
-  });
+  const mainCtrl = document.createElement('button');
+  mainCtrl.type = 'button';
+  mainCtrl.name = 'trace';
+  mainCtrl.className = 'ol-trace ol-trace-buttons';
+  mainCtrl.title = 'Trace a Path';
+  mainCtrl.innerHTML = markerHeadingSVG;
+
   const ctrlContainer = options.element || document.createElement('div');
   ctrlContainer.className = `ol-trace ${CLASS_UNSELECTABLE} ${CLASS_CONTROL}`;
   ctrlContainer.appendChild(mainCtrl);
