@@ -1,12 +1,12 @@
-import nodeResolve from "@rollup/plugin-node-resolve";
+import nodeResolve from '@rollup/plugin-node-resolve';
 import svg from 'rollup-plugin-svg';
-import css from "rollup-plugin-import-css";
+import css from 'rollup-plugin-import-css';
 
 const baseConfig = {
   input: 'src/index.js',
   output: {
     file: 'dist/geotrace.js',
-    format: 'esm'
+    format: 'esm',
   },
   plugins: [
     css({
@@ -15,7 +15,7 @@ const baseConfig = {
     nodeResolve(),
     svg(),
   ],
-}
+};
 
 const esmConfig = {
   ...baseConfig,

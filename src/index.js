@@ -110,7 +110,6 @@ export function* geotrace(map, options = {}) {
 
   // Callback for the base layer's postrender event.
   function updateView() {
-
     // Get the last positional timestamp from history; bail if there is none.
     const [{ timestamp: latestTS } = {}] = positionHistory.slice(-1);
     if (!latestTS) return;
@@ -349,7 +348,6 @@ export default function geotraceCtrl(map, options) {
       }
     }, false);
     liveCtrls.appendChild(recordButton);
-
   }, false);
 
   return new Control({ element: ctrlContainer });
