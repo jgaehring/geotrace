@@ -296,7 +296,6 @@ export default function geotraceCtrl(map, options) {
   const transformPosition = position => (paused ? { ...position, omit: true } : position);
   const startFn = options.simulate ? geosimulate : geolocate;
   const startOpts = { ...options, transformPosition };
-  const start = () => startFn(map, startOpts);
 
   const mainCtrl = document.createElement('button');
   mainCtrl.type = 'button';
@@ -310,47 +309,162 @@ export default function geotraceCtrl(map, options) {
   ctrlContainer.appendChild(mainCtrl);
 
   mainCtrl.addEventListener('click', () => {
-    if (!tracer) tracer = start();
-
     const viewPort = map.getViewport();
-    const liveContainer = document.createElement('div');
-    liveContainer.className = 'geotrace-container';
-    viewPort.appendChild(liveContainer);
+    const liveCtrlClassname = 'geotrace-live-ctrl';
+    const liveCtrlsContainer = document.createElement('div');
+    liveCtrlsContainer.className = `${liveCtrlClassname}s-container`;
+    viewPort.appendChild(liveCtrlsContainer);
 
     const liveCtrls = document.createElement('div');
-    liveCtrls.className = 'geotrace-live-ctrl-container';
-    liveContainer.appendChild(liveCtrls);
+    liveCtrls.className = `${liveCtrlClassname}s`;
+    liveCtrlsContainer.appendChild(liveCtrls);
 
-    const resumeTitle = 'Resume Tracing';
-    const pauseTitle = 'Pause Tracing';
-    const pausedClassName = 'paused';
+    // Transition states (as string constants) for the state machine below.
+    const STANDBY = 'STANDBY';
+    const START = 'START';
+    const PAUSE = 'PAUSE';
+    const RESUME = 'RESUME';
+    const SAVE = 'SAVE';
+    const CANCEL = 'CANCEL';
 
-    const recordButton = document.createElement('div');
-    const recordName = 'start';
-    recordButton.name = recordName;
-    recordButton.type = 'button';
-    const className = `geotrace-${recordName}`;
-    recordButton.className = `${className} ${className}-live-ctrl`;
-    recordButton.title = pauseTitle;
+    // Set the initial state as a separate constant to avoid confusion.
+    const INIT_STATE = START;
 
-    const recordSVG = `
-      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <mask id="ring">
-          <rect x="0" y="0" width="24" height="24" fill="white"/>
-          <circle cx="12" cy="12" r="11" fill="black" stroke="none"/>
-        </mask>
-        <circle cx="12" cy="12" r="12" fill="white" stroke="none" mask="url(#ring)"/>
-        <rect width="20" height="20" x="2" y="2" rx="10" fill="red"/>
-      </svg>
-    `;
-    recordButton.innerHTML = recordSVG;
-    recordButton.addEventListener('click', () => {
-      if (tracer && typeof tracer.next === 'function') {
-        paused = recordButton.classList.toggle(pausedClassName);
-        recordButton.title = paused ? resumeTitle : pauseTitle;
-      }
-    }, false);
-    liveCtrls.appendChild(recordButton);
+    // Live control button positions, also for the state machine.
+    const LEFT = 'LEFT';
+    const CENTER = 'CENTER';
+    const RIGHT = 'RIGHT';
+
+    // This is the single store of MUTABLE state for the entire lifespan of the
+    // geotracing operation, reflecting one of the legal transition states
+    // listed above. It also determines the selection and arrangement of the
+    // live control buttons at any given time.
+    let CURRENT_STATE = INIT_STATE;
+
+    /**
+     * A finite state machine for transitioning between various "live" tracing
+     * states. A library like XState might be preferrable for a more rigorous
+     * implementation, but this should suffice for now. It's also probably worth
+     * evaluating if the geotrace generator function could be refactored as a
+     * state machine like this, perhaps reusing major portions of this one.
+     * @see https://xstate.js.org/docs/about/concepts.html#finite-state-machines
+     * @see https://kentcdodds.com/blog/implementing-a-simple-state-machine-library-in-javascript
+    */
+    const controlStates = {
+      [STANDBY]: {
+        buttons: {
+          [CENTER]: START,
+          [RIGHT]: CANCEL,
+        },
+      },
+      [START]: {
+        action() {
+          tracer = startFn(map, startOpts);
+        },
+        buttons: {
+          [LEFT]: SAVE,
+          [CENTER]: PAUSE,
+          [RIGHT]: CANCEL,
+        },
+        icon: '▶️',
+        title: 'Start',
+      },
+      [PAUSE]: {
+        action() {
+          paused = !paused;
+        },
+        buttons: {
+          [LEFT]: RESUME,
+          [CENTER]: SAVE,
+          [RIGHT]: CANCEL,
+        },
+        icon: '⏸️',
+        title: 'Pause',
+      },
+      [RESUME]: {
+        action() {
+          paused = !paused;
+        },
+        buttons: {
+          [LEFT]: SAVE,
+          [CENTER]: PAUSE,
+          [RIGHT]: CANCEL,
+        },
+        icon: '▶️',
+        title: 'Resume',
+      },
+      [SAVE]: {
+        icon: '💾',
+        title: 'Save',
+        action() {
+          tracer.next({ done: true });
+          tracer.return();
+          tracer = null;
+        },
+      },
+      [CANCEL]: {
+        icon: '❌',
+        title: 'Cancel',
+        action() {
+          tracer.next({ done: true });
+          tracer.return();
+          tracer = null;
+        },
+      },
+    };
+
+    // Store the control buttons DOM nodes and current listeners in a separate
+    // state tree object.
+    const controlButtons = [LEFT, CENTER, RIGHT].reduce((crtls, position) => {
+      const element = document.createElement('div');
+      element.type = 'button';
+      const name = `${liveCtrlClassname}-${position.toLowerCase()}`;
+      element.name = name;
+      element.className = `${liveCtrlClassname} ${name}`;
+      liveCtrls.appendChild(element);
+      return {
+        ...crtls,
+        [position]: { element, listener: null },
+      };
+    }, {});
+
+    // Helpers for adding and removing listeners whenever a state change occurs.
+    function addButtonListener(position, listener) {
+      const { [position]: btn } = controlButtons;
+      btn.element.addEventListener('click', listener);
+      btn.listener = listener;
+    }
+    function removeButtonListeners(state) {
+      if (!controlStates[state] || !controlStates[state].buttons) return;
+      Object.keys(controlStates[state].buttons).forEach((position) => {
+        const { [position]: btn } = controlButtons;
+        btn.element.removeEventListener('click', btn.listener);
+        btn.listener = null;
+      });
+    }
+
+    // The main function used to step through each state transition in the
+    // finite state machine.
+    function stepState(target, event) {
+      if (!controlStates[target]) return;
+      const state = CURRENT_STATE;
+      const { [target]: { action, buttons = {} } } = controlStates;
+      if (typeof action === 'function') action({ state, event });
+      removeButtonListeners(state);
+      Object.entries(buttons).forEach(([position, btnTarget]) => {
+        if (!controlStates[btnTarget] || !controlButtons[position]) return;
+        const { [btnTarget]: { icon, title, render } } = controlStates;
+        const { [position]: { element } } = controlButtons;
+        if (typeof icon === 'string') element.innerHTML = icon;
+        if (typeof title === 'string') element.title = title;
+        if (typeof render === 'function') render({ state, element, event });
+        const listener = e => stepState(btnTarget, e);
+        addButtonListener(position, listener);
+      });
+      CURRENT_STATE = target;
+    }
+
+    stepState(INIT_STATE);
   }, false);
 
   return new Control({ element: ctrlContainer });
