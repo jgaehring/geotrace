@@ -280,9 +280,10 @@ export function geosimulate(map, options = {}) {
     if (done || remaining.length <= 0) return tracer.return(value);
     const [nextPosition] = remaining;
     const delay = nextPosition.timestamp - currentPosition.timestamp;
+    const speed = options.speed || 1;
     window.setTimeout(() => {
       simulatePositionChange(remaining);
-    }, delay * 2);
+    }, delay * speed);
     return value;
   }
   simulatePositionChange(data);
