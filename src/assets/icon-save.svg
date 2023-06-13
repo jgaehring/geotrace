@@ -1,0 +1,39 @@
+<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="white">
+  <mask id="ring">
+    <rect x="0" y="0" width="24" height="24" fill="white"/>
+    <circle cx="12" cy="12" r="11" fill="black" stroke="none"/>
+  </mask>
+  <circle cx="12" cy="12" r="12" fill="white" stroke="none" mask="url(#ring)"/>
+  <circle cx="12" cy="12" r="11" fill="rgba(0,0,0,.2)" stroke="none"/>
+
+  <!--
+      The path of the disk image is drawn in 3 stages via d-attr commands:
+      1. Disk outline
+      2. Circular cutout
+      3. Rectangular cutout
+  -->
+  <path
+    d="
+      M 15,5
+      H 7
+      c -1.11,0 -2,.9 -2,2
+      v 10
+      c 0,1.1 .89,2 2,2
+      h 10
+      c 1.11,0 2,-.9 2,-2
+      V 8
+      l -3,-3
+      z
+
+      m -3,12
+      c -1.11,0 -2,-0.89 -2,-2
+      s 0.89,-2 2,-2 2,0.89 2,2 -0.89,2 -2,2
+      z
+
+      m 3,-7
+      H 7
+      V 7
+      h 7
+      v 4
+      z"/>
+</svg>

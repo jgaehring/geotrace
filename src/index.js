@@ -14,6 +14,10 @@ import VectorSource from 'ol/source/Vector';
 import Style from 'ol/style/Style';
 import Stroke from 'ol/style/Stroke';
 import { calcRotation } from './maths';
+import cancelIconSVG from './assets/icon-cancel.svg';
+import pauseIconSVG from './assets/icon-pause.svg';
+import saveIconSVG from './assets/icon-save.svg';
+import startIconSVG from './assets/icon-start.svg';
 import markerSVG from './assets/marker.svg';
 import markerHeadingSVG from './assets/marker-heading.svg';
 import './assets/main.css';
@@ -366,7 +370,7 @@ export default function geotraceCtrl(map, options) {
           [CENTER]: PAUSE,
           [RIGHT]: CANCEL,
         },
-        icon: '▶️',
+        icon: startIconSVG,
         title: 'Start',
       },
       [PAUSE]: {
@@ -378,7 +382,7 @@ export default function geotraceCtrl(map, options) {
           [CENTER]: SAVE,
           [RIGHT]: CANCEL,
         },
-        icon: '⏸️',
+        icon: pauseIconSVG,
         title: 'Pause',
       },
       [RESUME]: {
@@ -390,11 +394,11 @@ export default function geotraceCtrl(map, options) {
           [CENTER]: PAUSE,
           [RIGHT]: CANCEL,
         },
-        icon: '▶️',
+        icon: startIconSVG,
         title: 'Resume',
       },
       [SAVE]: {
-        icon: '💾',
+        icon: saveIconSVG,
         title: 'Save',
         action() {
           tracer.next({ done: true });
@@ -403,7 +407,7 @@ export default function geotraceCtrl(map, options) {
         },
       },
       [CANCEL]: {
-        icon: '❌',
+        icon: cancelIconSVG,
         title: 'Cancel',
         action() {
           tracer.next({ done: true });

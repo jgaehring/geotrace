@@ -33,8 +33,9 @@
 .geotrace-live-ctrls {
   position: absolute;
   display: flex;
-  flex-direction: row;
+  flex-flow: row nowrap;
   justify-content: center;
+  align-items: center;
   height: fit-content;
   width: 100%;
   bottom: 64px;
@@ -43,13 +44,14 @@
 
 .geotrace-live-ctrl-left,
 .geotrace-live-ctrl-right {
-  text-align: center;
-  font-size: 2rem;
+  height: 64px;
+  width: 64px;
 }
 
 .geotrace-live-ctrl-center {
-  text-align: center;
-  font-size: 3rem;
+  height: 96px;
+  width: 96px;
+  padding: 0 32px;
 }
 
 .geotrace-start svg > rect {
