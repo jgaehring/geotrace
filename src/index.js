@@ -378,8 +378,8 @@ export default function geotraceCtrl(map, options) {
           paused = !paused;
         },
         buttons: {
-          [LEFT]: RESUME,
-          [CENTER]: SAVE,
+          [LEFT]: SAVE,
+          [CENTER]: RESUME,
           [RIGHT]: CANCEL,
         },
         icon: pauseIconSVG,
