@@ -209,26 +209,7 @@ export function* geotrace(map, options = {}) {
   function updateGeolocation(position) {
     if (position) positionHistory.push(position);
     if (position && position.done) done = true;
-  }
-
-  // An initial position option can be provided, to kick off the tracing operation.
-  if (options.position) {
-    const { position } = options;
-    updateGeolocation(position);
-
-    // Format the initial position coords the way OpenLayers likes.
-    const { coords: { latitude, longitude, heading } } = position;
-    const rotation = calcRotation(null, heading);
-    const coords = fromLonLat([longitude, latitude]);
-
-    // Set the marker position and rotation.
-    marker.setPosition(coords);
-    markerEl.style.rotate = `${rotation}rad`;
-
-    // Recenter here, at the beginning, regardless of whether the recenter option
-    // has been set, then zoom and render to get things started.
-    view.setCenter(coords);
-    view.setZoom(19);
+    map.render();
   }
 
   /**
@@ -250,51 +231,6 @@ export function* geotrace(map, options = {}) {
   return positionHistory;
 }
 
-export function geolocate(map, options = {}) {
-  const {
-    maximumAge = 0, enableHighAccuracy = true, timeout = Infinity,
-  } = options;
-  const opts = { maximumAge, enableHighAccuracy, timeout };
-  const tracer = geotrace(map, options);
-  let watchId;
-  const watcher = (rawPosition) => {
-    const position = typeof options.transformPosition === 'function'
-      ? options.transformPosition(rawPosition)
-      : rawPosition;
-    const { done } = tracer.next(position);
-    if (done) navigator.geolocation.clearWatch(watchId);
-  };
-  watchId = navigator.geolocation.watchPosition(watcher, null, opts);
-  return tracer;
-}
-
-export function geosimulate(map, options = {}) {
-  const { simulate: data } = options;
-  if (!data || !Array.isArray(data)) {
-    throw new Error('Invalid geosimulate data');
-  }
-
-  const tracer = geotrace(map, options);
-  function simulatePositionChange(simTrail) {
-    const [currentPosition, ...remaining] = simTrail;
-    const position = typeof options.transformPosition === 'function'
-      ? options.transformPosition(currentPosition)
-      : currentPosition;
-    const { value, done } = tracer.next(position) || {};
-    if (done || remaining.length <= 0) return tracer.return(value);
-    const [nextPosition] = remaining;
-    const delay = nextPosition.timestamp - currentPosition.timestamp;
-    const speed = options.speed || 1;
-    window.setTimeout(() => {
-      simulatePositionChange(remaining);
-    }, delay * speed);
-    return value;
-  }
-  simulatePositionChange(data);
-
-  return tracer;
-}
-
 /**
  * Safari doesn't support using the SVG drawing attribute (d) as a CSS property
  * in combination with the path() function, but CSS provides a much smoother
@@ -305,12 +241,27 @@ export function geosimulate(map, options = {}) {
  */
 const cssDPathSupported = window.CSS.supports('(d: path("M0 0h24v24H0z"))');
 
-export default function geotraceCtrl(map, options) {
-  let tracer = null; let paused = false;
+/**
+ * Use this instead of spread syntax with GeolocationPosition instances, b/c it
+ * inherits it's properties from up the prototype chain and has no enumerable
+ * properties of its own. The same is true with GeolocationCoordinates.
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax#description
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Enumerability_and_ownership_of_properties
+ */
+function cloneGeolocation(position) {
+  const { coords: rawCoords, timestamp } = position;
+  const {
+    accuracy, altitude, altitudeAccuracy, heading, latitude, longitude, speed,
+  } = rawCoords;
+  const coords = {
+    accuracy, altitude, altitudeAccuracy, heading, latitude, longitude, speed,
+  };
+  return { coords, timestamp };
+}
 
-  const transformPosition = position => (paused ? { ...position, omit: true } : position);
-  const startFn = options.simulate ? geosimulate : geolocate;
-  const startOpts = { ...options, transformPosition };
+export default function geotraceCtrl(map, options = {}) {
+  const tracer = geotrace(map, options);
+  let paused = !options.immediateStart;
 
   const mainCtrl = document.createElement('button');
   mainCtrl.type = 'button';
@@ -348,7 +299,7 @@ export default function geotraceCtrl(map, options) {
     const CANCEL = 'CANCEL';
 
     // Set the initial state as a separate constant to avoid confusion.
-    const INIT_STATE = START;
+    const INIT_STATE = STANDBY;
 
     // Live control button positions, also for the state machine.
     const LEFT = 'LEFT';
@@ -376,10 +327,52 @@ export default function geotraceCtrl(map, options) {
           [CENTER]: START,
           [RIGHT]: CANCEL,
         },
+        action() {
+          let zoomOnceComplete = false;
+          function zoomOnce(position) {
+            if (zoomOnceComplete || !position) return;
+            const view = map.getView();
+            const { coords: { latitude, longitude } = {} } = position;
+            const coords = fromLonLat([longitude, latitude]);
+            view.setCenter(coords);
+            view.setZoom(19);
+            zoomOnceComplete = true;
+          }
+
+          function simulatePositionChange(simTrail) {
+            const [{ coords, timestamp } = {}, ...remaining] = simTrail;
+            const position = { coords, timestamp, omit: paused };
+            zoomOnce(position);
+            const { value, done } = tracer.next(position) || {};
+            if (done || remaining.length <= 0) return tracer.return(value);
+            const [nextPosition] = remaining;
+            const delay = nextPosition.timestamp - timestamp;
+            const speed = options.simSpeed || 1;
+            window.setTimeout(() => {
+              simulatePositionChange(remaining);
+            }, delay * speed);
+            return value;
+          }
+
+          if (Array.isArray(options.simulate)) {
+            simulatePositionChange(options.simulate);
+          } else {
+            const {
+              maximumAge = 0, enableHighAccuracy = true, timeout = Infinity,
+            } = options;
+            const geolocOpts = { maximumAge, enableHighAccuracy, timeout };
+            const watchId = navigator.geolocation.watchPosition((geoloc = {}) => {
+              const position = cloneGeolocation(geoloc);
+              const { done } = tracer.next({ ...position, omit: paused });
+              if (done) navigator.geolocation.clearWatch(watchId);
+              zoomOnce(position);
+            }, null, geolocOpts);
+          }
+        },
       },
       [START]: {
         action() {
-          tracer = startFn(map, startOpts);
+          paused = false;
         },
         buttons: {
           [LEFT]: SAVE,
@@ -391,7 +384,7 @@ export default function geotraceCtrl(map, options) {
       },
       [PAUSE]: {
         action() {
-          paused = !paused;
+          paused = true;
         },
         buttons: {
           [LEFT]: SAVE,
@@ -400,8 +393,6 @@ export default function geotraceCtrl(map, options) {
         },
         render(ctx) {
           if (!cssDPathSupported) ctx.element.innerHTML = pauseIconAnimatedSVG;
-          // This check won't be necessary when the initial state is set to STANDBY.
-          else if (!ctx.element.querySelector('svg')) ctx.element.innerHTML = startIconSVG;
           ctx.element.title = 'Pause';
           ctx.element.classList.remove(resumeBtnClassName);
           ctx.element.classList.add(pauseBtnClassName);
@@ -409,7 +400,7 @@ export default function geotraceCtrl(map, options) {
       },
       [RESUME]: {
         action() {
-          paused = !paused;
+          paused = false;
         },
         buttons: {
           [LEFT]: SAVE,
@@ -429,7 +420,6 @@ export default function geotraceCtrl(map, options) {
         action() {
           tracer.next({ done: true });
           tracer.return();
-          tracer = null;
         },
       },
       [CANCEL]: {
@@ -438,7 +428,6 @@ export default function geotraceCtrl(map, options) {
         action() {
           tracer.next({ done: true });
           tracer.return();
-          tracer = null;
         },
       },
     };
@@ -495,6 +484,7 @@ export default function geotraceCtrl(map, options) {
     }
 
     stepState(INIT_STATE);
+    if (options.immediateStart) stepState(START);
   }, false);
 
   return new Control({ element: ctrlContainer });
