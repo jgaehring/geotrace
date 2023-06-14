@@ -1,4 +1,8 @@
+import '@farmos.org/farmos-map/dist/farmOS-map';
+import '@farmos.org/farmos-map/dist/farmOS-map.css';
 import geotraceCtrl from 'farmos-map-geotrace';
+import 'farmos-map-geotrace/dist/geotrace.css';
+import sim from './sim.json';
 
 const units = 'metric';
 const instance = window.farmOS.map.create('map', { units });
@@ -8,15 +12,9 @@ instance.addLayer('vector', {
   color: 'orange',
 });
 
-const simDataRequest = new XMLHttpRequest();
-simDataRequest.open('GET', 'sim.json');
-simDataRequest.onload = () => {
-  const { data } = JSON.parse(simDataRequest.responseText);
-  const opts = {
-    simulate: data,
-    immediateStart: true,
-  };
-  const simCtrl = geotraceCtrl(instance.map, opts);
-  instance.map.addControl(simCtrl);
+const opts = {
+  simulate: sim.data,
+  immediateStart: true,
 };
-simDataRequest.send();
+const simCtrl = geotraceCtrl(instance.map, opts);
+instance.map.addControl(simCtrl);
