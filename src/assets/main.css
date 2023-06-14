@@ -54,20 +54,20 @@
   padding: 0 32px;
 }
 
-.geotrace-start svg > rect {
-  width: 15px;
-  height: 15px;
-  x: 4.5;
-  y: 4.5;
-  rx: 2;
-  transition: all 150ms ease-in-out;
-}
-
-.geotrace-start.paused svg > rect {
-  width: 20px;
-  height: 20px;
-  x: 2;
-  y: 2;
-  rx: 10;
-  transition: all 150ms ease-in-out;
+@supports (d: path("M0 0h24v24H0z")) {
+  .geotrace-live-ctrl-center svg > path {
+    transition: d 100ms ease-in-out;
+  }
+  .geotrace-live-ctrl-center.pause-btn svg > path.left {
+    d: path("M7,5 l0,14 l3,0 l0,-14 z");
+  }
+  .geotrace-live-ctrl-center.pause-btn svg > path.right {
+    d: path("M17,5 l0,14 l-3,0 l0,-14 z");
+  }
+  .geotrace-live-ctrl-center.resume-btn svg > path.left {
+    d: path("M12,3 l-7,15 l.71,.71 l6.29,-2.71 z");
+  }
+  .geotrace-live-ctrl-center.resume-btn svg > path.right {
+    d: path("M12,3 l7,15 l-.71,.71 l-6.29,-2.71 z");
+  }
 }

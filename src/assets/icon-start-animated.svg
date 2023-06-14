@@ -1,0 +1,26 @@
+<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <mask id="ring">
+    <rect x="0" y="0" width="24" height="24" fill="white"/>
+    <circle cx="12" cy="12" r="11" fill="black" stroke="none"/>
+  </mask>
+  <circle cx="12" cy="12" r="12" fill="white" stroke="none" mask="url(#ring)"/>
+  <circle cx="12" cy="12" r="11" fill="rgba(0,0,0,.2)" stroke="none"/>
+  <path fill="white" d="M12,3 l-7,15 l.71,.71 l6.29,-2.71 z">
+    <animate
+      attributeName="d"
+      from="M7,5 l0,14 l3,0 l0,-14 z"
+      to="M12,3 l-7,15 l.71,.71 l6.29,-2.71 z"
+      dur="100ms"
+      calcMode="linear"
+      repeatCount="1"/>
+  </path>
+  <path fill="white" d="M12,3 l7,15 l-.71,.71 l-6.29,-2.71 z">
+    <animate
+      attributeName="d"
+      from="M17,5 l0,14 l-3,0 l0,-14 z"
+      to="M12,3 l-7,15 l.71,.71 l6.29,-2.71 z"
+      dur="100ms"
+      calcMode="linear"
+      repeatCount="1"/>
+  </path>
+</svg>

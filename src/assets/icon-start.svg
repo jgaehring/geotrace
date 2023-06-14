@@ -7,8 +7,10 @@
   <circle cx="12" cy="12" r="11" fill="rgba(0,0,0,.2)" stroke="none"/>
   <path
     fill="white"
+    class="left"
     d="M12,3 l-7,15 l.71,.71 l6.29,-2.71 z"/>
   <path
     fill="white"
+    class="right"
     d="M12,3 l7,15 l-.71,.71 l-6.29,-2.71 z"/>
 </svg>

@@ -15,9 +15,10 @@ import Style from 'ol/style/Style';
 import Stroke from 'ol/style/Stroke';
 import { calcRotation } from './maths';
 import cancelIconSVG from './assets/icon-cancel.svg';
-import pauseIconSVG from './assets/icon-pause.svg';
+import pauseIconAnimatedSVG from './assets/icon-pause-animated.svg';
 import saveIconSVG from './assets/icon-save.svg';
 import startIconSVG from './assets/icon-start.svg';
+import startIconAnimatedSVG from './assets/icon-start-animated.svg';
 import markerSVG from './assets/marker.svg';
 import markerHeadingSVG from './assets/marker-heading.svg';
 import './assets/main.css';
@@ -294,6 +295,16 @@ export function geosimulate(map, options = {}) {
   return tracer;
 }
 
+/**
+ * Safari doesn't support using the SVG drawing attribute (d) as a CSS property
+ * in combination with the path() function, but CSS provides a much smoother
+ * transition than the SVG <animate> element, so detect first if the browser
+ * supports path() and use <animate> only as a fallback.
+ * @see https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/d#using_d_as_a_css_property
+ * @see https://caniuse.com/mdn-svg_elements_path_d_path
+ */
+const cssDPathSupported = window.CSS.supports('(d: path("M0 0h24v24H0z"))');
+
 export default function geotraceCtrl(map, options) {
   let tracer = null; let paused = false;
 
@@ -322,6 +333,11 @@ export default function geotraceCtrl(map, options) {
     const liveCtrls = document.createElement('div');
     liveCtrls.className = `${liveCtrlClassname}s`;
     liveCtrlsContainer.appendChild(liveCtrls);
+
+    // These classes will be added or removed to the center control to animate
+    // the icon state transition.
+    const pauseBtnClassName = 'pause-btn';
+    const resumeBtnClassName = 'resume-btn';
 
     // Transition states (as string constants) for the state machine below.
     const STANDBY = 'STANDBY';
@@ -370,7 +386,7 @@ export default function geotraceCtrl(map, options) {
           [CENTER]: PAUSE,
           [RIGHT]: CANCEL,
         },
-        icon: startIconSVG,
+        icon: cssDPathSupported ? startIconSVG : startIconAnimatedSVG,
         title: 'Start',
       },
       [PAUSE]: {
@@ -382,8 +398,14 @@ export default function geotraceCtrl(map, options) {
           [CENTER]: RESUME,
           [RIGHT]: CANCEL,
         },
-        icon: pauseIconSVG,
-        title: 'Pause',
+        render(ctx) {
+          if (!cssDPathSupported) ctx.element.innerHTML = pauseIconAnimatedSVG;
+          // This check won't be necessary when the initial state is set to STANDBY.
+          else if (!ctx.element.querySelector('svg')) ctx.element.innerHTML = startIconSVG;
+          ctx.element.title = 'Pause';
+          ctx.element.classList.remove(resumeBtnClassName);
+          ctx.element.classList.add(pauseBtnClassName);
+        },
       },
       [RESUME]: {
         action() {
@@ -394,8 +416,12 @@ export default function geotraceCtrl(map, options) {
           [CENTER]: PAUSE,
           [RIGHT]: CANCEL,
         },
-        icon: startIconSVG,
-        title: 'Resume',
+        render(ctx) {
+          if (!cssDPathSupported) ctx.element.innerHTML = startIconAnimatedSVG;
+          ctx.element.title = 'Resume';
+          ctx.element.classList.remove(pauseBtnClassName);
+          ctx.element.classList.add(resumeBtnClassName);
+        },
       },
       [SAVE]: {
         icon: saveIconSVG,
