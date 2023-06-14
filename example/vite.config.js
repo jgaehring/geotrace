@@ -18,10 +18,4 @@ export default defineConfig({
       },
     },
   },
-  optimizeDeps: {
-    exclude: [
-      // '@farmos.org/farmos-map',
-      'farmos-map-geotrace',
-    ],
-  },
 });
