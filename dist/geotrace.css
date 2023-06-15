@@ -1,0 +1,73 @@
+.ol-trace.ol-control {
+  top: 4.75em;
+  left: 0.5em;
+}
+
+.ol-trace.ol-control button.active {
+  background-color: #fc3;
+  background-color: rgba(255, 204, 51, 0.7);
+}
+
+.ol-trace.ol-control button object svg {
+  pointer-events: none;
+}
+
+*:has(> .interactive-content-overlay) {
+  position: relative;
+}
+
+.interactive-content-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 100%;
+}
+
+.geotrace-live-ctrls-container {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+}
+
+.geotrace-live-ctrls {
+  position: absolute;
+  display: flex;
+  flex-flow: row nowrap;
+  justify-content: center;
+  align-items: center;
+  height: fit-content;
+  width: 100%;
+  bottom: 64px;
+  left: 0;
+}
+
+.geotrace-live-ctrl-left,
+.geotrace-live-ctrl-right {
+  height: 64px;
+  width: 64px;
+}
+
+.geotrace-live-ctrl-center {
+  height: 96px;
+  width: 96px;
+  padding: 0 32px;
+}
+
+@supports (d: path("M0 0h24v24H0z")) {
+  .geotrace-live-ctrl-center svg > path {
+    transition: d 100ms ease-in-out;
+  }
+  .geotrace-live-ctrl-center.pause-btn svg > path.left {
+    d: path("M7,5 l0,14 l3,0 l0,-14 z");
+  }
+  .geotrace-live-ctrl-center.pause-btn svg > path.right {
+    d: path("M17,5 l0,14 l-3,0 l0,-14 z");
+  }
+  .geotrace-live-ctrl-center.resume-btn svg > path.left {
+    d: path("M12,3 l-7,15 l.71,.71 l6.29,-2.71 z");
+  }
+  .geotrace-live-ctrl-center.resume-btn svg > path.right {
+    d: path("M12,3 l7,15 l-.71,.71 l-6.29,-2.71 z");
+  }
+}
