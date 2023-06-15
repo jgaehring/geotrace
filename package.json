@@ -8,7 +8,6 @@
   "scripts": {
     "build": "rollup --config",
     "dev": "rollup --config --watch",
-    "prepare": "npm run build",
     "start": "npm run dev",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
