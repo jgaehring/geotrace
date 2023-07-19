@@ -8,6 +8,7 @@ export default defineConfig({
         '!**/node_modules/farmos-map-geotrace/**',
       ],
     },
+    host: true,
   },
   build: {
     rollupOptions: {

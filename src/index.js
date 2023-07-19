@@ -83,7 +83,7 @@ export function* geotrace(map, options = {}) {
   }
 
   // This sample geometry is never displayed and only contains the range of
-  // positions between the last one recoreded in the position history, and the
+  // positions between the last one recorded in the position history, and the
   // previous position added to the sample geometry. This trail is used to
   // interpolate sample coordinates within that range during the postrender
   // callback (ie, updateView), providing a smoother animation for the preview
@@ -109,7 +109,7 @@ export function* geotrace(map, options = {}) {
   // Because the sampled coordinates correspond neither to the position history,
   // nor the set coordinates of the sample trail (b/c they can be interpolated),
   // nor to the coordinates of the preview trail when the tracer is paused, the
-  // last sampling timstamp must be stored in a separate piece of state.
+  // last sampling timestamp must be stored in a separate piece of state.
   let lastSampleTimestamp = 0;
 
   // Callback for the base layer's postrender event.
@@ -159,7 +159,7 @@ export function* geotrace(map, options = {}) {
       // Overwrite the trail coordinates.
       sampleTrail.setCoordinates(trailCoords);
 
-      // Reset the mean samplng rate as well.
+      // Reset the mean sampling rate as well.
       if (positionHistory.length >= 2) {
         const [{ timestamp: earliestTS }] = positionHistory.slice(-sampleSize);
         const actualSampleSize = Math.min(positionHistory.length, sampleSize);
@@ -221,7 +221,7 @@ export function* geotrace(map, options = {}) {
   const renderKey = baseLayer.on(['postcompose', 'postrender'], updateView);
   map.render();
 
-  while (!done) updateGeolocation(yield);
+  while (!done) updateGeolocation(yield [...positionHistory]);
 
   unByKey(renderKey);
   map.removeOverlay(marker);
@@ -262,6 +262,26 @@ function cloneGeolocation(position) {
 export default function geotraceCtrl(map, options = {}) {
   const tracer = geotrace(map, options);
   let paused = !options.immediateStart;
+
+  const listeners = options.on || {};
+
+  function emitEvents(event) {
+    let history = [];
+
+    if (event === 'cancel') {
+      tracer.next({ done: true });
+      history = tracer.return([]).value;
+    } else if (event === 'done') {
+      tracer.next({ done: true });
+      history = tracer.return().value;
+    } else {
+      history = tracer.next().value;
+    }
+
+    if (typeof listeners[event] === 'function') {
+      listeners[event]({ history });
+    }
+  }
 
   const mainCtrl = document.createElement('button');
   mainCtrl.type = 'button';
@@ -314,7 +334,7 @@ export default function geotraceCtrl(map, options = {}) {
 
     /**
      * A finite state machine for transitioning between various "live" tracing
-     * states. A library like XState might be preferrable for a more rigorous
+     * states. A library like XState might be preferable for a more rigorous
      * implementation, but this should suffice for now. It's also probably worth
      * evaluating if the geotrace generator function could be refactored as a
      * state machine like this, perhaps reusing major portions of this one.
@@ -373,6 +393,7 @@ export default function geotraceCtrl(map, options = {}) {
       [START]: {
         action() {
           paused = false;
+          emitEvents('start');
         },
         buttons: {
           [LEFT]: SAVE,
@@ -385,6 +406,7 @@ export default function geotraceCtrl(map, options = {}) {
       [PAUSE]: {
         action() {
           paused = true;
+          emitEvents('pause');
         },
         buttons: {
           [LEFT]: SAVE,
@@ -401,6 +423,7 @@ export default function geotraceCtrl(map, options = {}) {
       [RESUME]: {
         action() {
           paused = false;
+          emitEvents('resume');
         },
         buttons: {
           [LEFT]: SAVE,
@@ -418,23 +441,21 @@ export default function geotraceCtrl(map, options = {}) {
         icon: saveIconSVG,
         title: 'Save',
         action() {
-          tracer.next({ done: true });
-          tracer.return();
+          emitEvents('done');
         },
       },
       [CANCEL]: {
         icon: cancelIconSVG,
         title: 'Cancel',
         action() {
-          tracer.next({ done: true });
-          tracer.return();
+          emitEvents('cancel');
         },
       },
     };
 
     // Store the control buttons DOM nodes and current listeners in a separate
     // state tree object.
-    const controlButtons = [LEFT, CENTER, RIGHT].reduce((crtls, position) => {
+    const controlButtons = [LEFT, CENTER, RIGHT].reduce((ctrls, position) => {
       const element = document.createElement('div');
       element.type = 'button';
       const name = `${liveCtrlClassname}-${position.toLowerCase()}`;
@@ -442,7 +463,7 @@ export default function geotraceCtrl(map, options = {}) {
       element.className = `${liveCtrlClassname} ${name}`;
       liveCtrls.appendChild(element);
       return {
-        ...crtls,
+        ...ctrls,
         [position]: { element, listener: null },
       };
     }, {});

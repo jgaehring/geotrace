@@ -15,6 +15,23 @@ instance.addLayer('vector', {
 const opts = {
   simulate: sim.data,
   immediateStart: true,
+  on: {
+    start(ctx) {
+      console.log('start', ctx);
+    },
+    pause(ctx) {
+      console.log('pause', ctx);
+    },
+    resume(ctx) {
+      console.log('resume', ctx);
+    },
+    done(ctx) {
+      console.log('done', ctx);
+    },
+    cancel(ctx) {
+      console.log('cancel', ctx);
+    },
+  },
 };
 const simCtrl = geotraceCtrl(instance.map, opts);
 instance.map.addControl(simCtrl);
