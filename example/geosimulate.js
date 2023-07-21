@@ -15,6 +15,8 @@ instance.addLayer('vector', {
 const opts = {
   simulate: sim.data,
   immediateStart: true,
+  closed: true,
+  recenter: false,
   on: {
     start(ctx) {
       console.log('start', ctx);
@@ -25,8 +27,8 @@ const opts = {
     resume(ctx) {
       console.log('resume', ctx);
     },
-    done(ctx) {
-      console.log('done', ctx);
+    save(ctx) {
+      console.log('save', ctx);
     },
     cancel(ctx) {
       console.log('cancel', ctx);

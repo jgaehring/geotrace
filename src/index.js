@@ -206,9 +206,12 @@ export function* geotrace(map, options = {}) {
   }
 
   let done = false;
-  function updateGeolocation(position) {
+  function updateGeolocation({ position, done: shouldDone } = {}) {
     if (position) positionHistory.push(position);
-    if (position && position.done) done = true;
+    if (shouldDone) {
+      if (options.closed) positionHistory.push(positionHistory[0]);
+      done = true;
+    }
     map.render();
   }
 
@@ -221,7 +224,7 @@ export function* geotrace(map, options = {}) {
   const renderKey = baseLayer.on(['postcompose', 'postrender'], updateView);
   map.render();
 
-  while (!done) updateGeolocation(yield [...positionHistory]);
+  while (!done) updateGeolocation(yield positionHistory.filter(item => !item.omit));
 
   unByKey(renderKey);
   map.removeOverlay(marker);
@@ -259,29 +262,57 @@ function cloneGeolocation(position) {
   return { coords, timestamp };
 }
 
-export default function geotraceCtrl(map, options = {}) {
-  const tracer = geotrace(map, options);
-  let paused = !options.immediateStart;
+function geolocationToGeoJson(history, options) {
+  const geoJson = {
+    type: 'Feature',
+    geometry: {},
+  };
 
-  const listeners = options.on || {};
-
-  function emitEvents(event) {
-    let history = [];
-
-    if (event === 'cancel') {
-      tracer.next({ done: true });
-      history = tracer.return([]).value;
-    } else if (event === 'done') {
-      tracer.next({ done: true });
-      history = tracer.return().value;
-    } else {
-      history = tracer.next().value;
-    }
-
-    if (typeof listeners[event] === 'function') {
-      listeners[event]({ history });
-    }
+  if (history.length === 0) {
+    return geoJson;
   }
+
+  function locationToCoords(location) {
+    return [location.coords.longitude, location.coords.latitude];
+  }
+
+  if (history.length === 1) {
+    geoJson.geometry = {
+      type: 'Point',
+      coordinates: locationToCoords(history[0]),
+    };
+  } else if (history.length === 2) {
+    geoJson.geometry = {
+      type: 'LineString',
+      coordinates: [
+        locationToCoords(history[0]),
+        locationToCoords(history[1]),
+      ],
+    };
+  } else if (!options.closed) {
+    geoJson.geometry = {
+      type: 'MultiLineString',
+      coordinates: history
+        .filter((_, index) => index < history.length - 1)
+        .map((location, index) => [
+          locationToCoords(location),
+          locationToCoords(history[index + 1]),
+        ]),
+    };
+  } else {
+    geoJson.geometry = {
+      type: 'Polygon',
+      coordinates: [history.map(locationToCoords)],
+    };
+  }
+
+  return geoJson;
+}
+
+export default function geotraceCtrl(map, options = {}) {
+  let tracer = null;
+  let paused = !options.immediateStart;
+  const listeners = options.on || {};
 
   const mainCtrl = document.createElement('button');
   mainCtrl.type = 'button';
@@ -332,6 +363,31 @@ export default function geotraceCtrl(map, options = {}) {
     // live control buttons at any given time.
     let CURRENT_STATE = INIT_STATE;
 
+    function emitEvents(event = '') {
+      let res;
+
+      if (event === CANCEL) {
+        tracer?.next({ done: true });
+        res = tracer?.return([]);
+      } else if (event === SAVE) {
+        res = tracer?.next({ done: true });
+      } else {
+        res = tracer?.next();
+      }
+
+      const { value: history = [], done = true } = res || {};
+      if (done) tracer = null;
+
+      const listener = listeners[event.toLowerCase()];
+      if (typeof listener !== 'function') {
+        return;
+      }
+
+      const geoJson = geolocationToGeoJson(history, options);
+
+      listener({ history, geoJson });
+    }
+
     /**
      * A finite state machine for transitioning between various "live" tracing
      * states. A library like XState might be preferable for a more rigorous
@@ -345,9 +401,13 @@ export default function geotraceCtrl(map, options = {}) {
       [STANDBY]: {
         buttons: {
           [CENTER]: START,
-          [RIGHT]: CANCEL,
         },
+      },
+      [START]: {
         action() {
+          paused = false;
+          if (!tracer) tracer = geotrace(map, options);
+
           let zoomOnceComplete = false;
           function zoomOnce(position) {
             if (zoomOnceComplete || !position) return;
@@ -359,16 +419,20 @@ export default function geotraceCtrl(map, options = {}) {
             zoomOnceComplete = true;
           }
 
+          let simTimer;
           function simulatePositionChange(simTrail) {
             const [{ coords, timestamp } = {}, ...remaining] = simTrail;
             const position = { coords, timestamp, omit: paused };
             zoomOnce(position);
-            const { value, done } = tracer.next(position) || {};
-            if (done || remaining.length <= 0) return tracer.return(value);
+            const { value, done } = tracer?.next({ position }) || {};
+            if (!tracer || done || remaining.length <= 0) {
+              if (simTimer) window.clearTimeout(simTimer);
+              return value;
+            }
             const [nextPosition] = remaining;
             const delay = nextPosition.timestamp - timestamp;
             const speed = options.simSpeed || 1;
-            window.setTimeout(() => {
+            simTimer = window.setTimeout(() => {
               simulatePositionChange(remaining);
             }, delay * speed);
             return value;
@@ -383,17 +447,14 @@ export default function geotraceCtrl(map, options = {}) {
             const geolocOpts = { maximumAge, enableHighAccuracy, timeout };
             const watchId = navigator.geolocation.watchPosition((geoloc = {}) => {
               const position = cloneGeolocation(geoloc);
-              const { done } = tracer.next({ ...position, omit: paused });
+              position.omit = paused;
+              const { done } = tracer?.next({ position }) || {};
               if (done) navigator.geolocation.clearWatch(watchId);
               zoomOnce(position);
             }, null, geolocOpts);
           }
-        },
-      },
-      [START]: {
-        action() {
-          paused = false;
-          emitEvents('start');
+
+          emitEvents(START);
         },
         buttons: {
           [LEFT]: SAVE,
@@ -402,20 +463,25 @@ export default function geotraceCtrl(map, options = {}) {
         },
         icon: cssDPathSupported ? startIconSVG : startIconAnimatedSVG,
         title: 'Start',
+        render(ctx) {
+          if (!cssDPathSupported) ctx.element.innerHTML = pauseIconAnimatedSVG;
+          ctx.element.classList.remove(pauseBtnClassName);
+          ctx.element.classList.add(resumeBtnClassName);
+        },
       },
       [PAUSE]: {
         action() {
           paused = true;
-          emitEvents('pause');
+          emitEvents(PAUSE);
         },
         buttons: {
           [LEFT]: SAVE,
           [CENTER]: RESUME,
           [RIGHT]: CANCEL,
         },
+        title: 'Pause',
         render(ctx) {
-          if (!cssDPathSupported) ctx.element.innerHTML = pauseIconAnimatedSVG;
-          ctx.element.title = 'Pause';
+          if (!cssDPathSupported) ctx.element.innerHTML = startIconAnimatedSVG;
           ctx.element.classList.remove(resumeBtnClassName);
           ctx.element.classList.add(pauseBtnClassName);
         },
@@ -423,16 +489,16 @@ export default function geotraceCtrl(map, options = {}) {
       [RESUME]: {
         action() {
           paused = false;
-          emitEvents('resume');
+          emitEvents(RESUME);
         },
         buttons: {
           [LEFT]: SAVE,
           [CENTER]: PAUSE,
           [RIGHT]: CANCEL,
         },
+        title: 'Resume',
         render(ctx) {
-          if (!cssDPathSupported) ctx.element.innerHTML = startIconAnimatedSVG;
-          ctx.element.title = 'Resume';
+          if (!cssDPathSupported) ctx.element.innerHTML = pauseIconAnimatedSVG;
           ctx.element.classList.remove(pauseBtnClassName);
           ctx.element.classList.add(resumeBtnClassName);
         },
@@ -441,14 +507,20 @@ export default function geotraceCtrl(map, options = {}) {
         icon: saveIconSVG,
         title: 'Save',
         action() {
-          emitEvents('done');
+          emitEvents(SAVE);
+        },
+        buttons: {
+          [CENTER]: START,
         },
       },
       [CANCEL]: {
         icon: cancelIconSVG,
         title: 'Cancel',
         action() {
-          emitEvents('cancel');
+          emitEvents(CANCEL);
+        },
+        buttons: {
+          [CENTER]: START,
         },
       },
     };
@@ -491,16 +563,23 @@ export default function geotraceCtrl(map, options = {}) {
       const { [target]: { action, buttons = {} } } = controlStates;
       if (typeof action === 'function') action({ state, event });
       removeButtonListeners(state);
-      Object.entries(buttons).forEach(([position, btnTarget]) => {
-        if (!controlStates[btnTarget] || !controlButtons[position]) return;
-        const { [btnTarget]: { icon, title, render } } = controlStates;
+      [LEFT, CENTER, RIGHT].forEach((position) => {
         const { [position]: { element } } = controlButtons;
+        const btnTarget = buttons[position];
+        if (!btnTarget) {
+          element.style.visibility = 'hidden';
+          return;
+        }
+        element.style.visibility = 'visible';
+        if (!controlStates[btnTarget]) return;
+        const { [btnTarget]: { icon, title, render } } = controlStates;
         if (typeof icon === 'string') element.innerHTML = icon;
         if (typeof title === 'string') element.title = title;
         if (typeof render === 'function') render({ state, element, event });
         const listener = e => stepState(btnTarget, e);
         addButtonListener(position, listener);
       });
+
       CURRENT_STATE = target;
     }
 
